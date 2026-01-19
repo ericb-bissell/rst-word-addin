@@ -1,0 +1,48 @@
+{
+  "name": "rst-word-addin",
+  "version": "1.0.0",
+  "description": "Microsoft Word Add-in for converting documents to reStructuredText (RST)",
+  "main": "dist/taskpane.js",
+  "scripts": {
+    "build": "webpack --mode production",
+    "build:dev": "webpack --mode development",
+    "dev": "webpack serve --mode development",
+    "start": "webpack serve --mode development --open",
+    "lint": "eslint src/**/*.ts",
+    "test": "jest",
+    "validate": "office-addin-manifest validate manifest.xml",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "office",
+    "word",
+    "addin",
+    "rst",
+    "restructuredtext",
+    "sphinx",
+    "documentation"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "jszip": "^3.10.1"
+  },
+  "devDependencies": {
+    "@types/office-js": "^1.0.377",
+    "@types/node": "^20.10.0",
+    "copy-webpack-plugin": "^12.0.2",
+    "css-loader": "^6.8.1",
+    "html-webpack-plugin": "^5.6.0",
+    "mini-css-extract-plugin": "^2.7.6",
+    "office-addin-dev-certs": "^1.13.1",
+    "style-loader": "^3.3.3",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.3.3",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^4.15.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
