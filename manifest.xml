@@ -13,9 +13,9 @@
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="RST Preview"/>
   <Description DefaultValue="Preview and export Word documents as reStructuredText (RST) for Sphinx and documentation systems."/>
-  <IconUrl DefaultValue="https://localhost:3000/assets/icon-32.png"/>
-  <HighResolutionIconUrl DefaultValue="https://localhost:3000/assets/icon-80.png"/>
-  <SupportUrl DefaultValue="https://github.com/"/>
+  <IconUrl DefaultValue="https://ericb-bissell.github.io/rst-word-addin/assets/icon-32.png"/>
+  <HighResolutionIconUrl DefaultValue="https://ericb-bissell.github.io/rst-word-addin/assets/icon-80.png"/>
+  <SupportUrl DefaultValue="https://github.com/ericb-bissell/rst-word-addin"/>
 
   <!-- Supported Office Applications -->
   <Hosts>
@@ -31,7 +31,7 @@
 
   <!-- Default Settings -->
   <DefaultSettings>
-    <SourceLocation DefaultValue="https://localhost:3000/taskpane.html"/>
+    <SourceLocation DefaultValue="https://ericb-bissell.github.io/rst-word-addin/taskpane.html"/>
   </DefaultSettings>
 
   <!-- Permissions -->
@@ -120,14 +120,14 @@
     <!-- Resources -->
     <Resources>
       <bt:Images>
-        <bt:Image id="Icon.16x16" DefaultValue="https://localhost:3000/assets/icon-16.png"/>
-        <bt:Image id="Icon.32x32" DefaultValue="https://localhost:3000/assets/icon-32.png"/>
-        <bt:Image id="Icon.80x80" DefaultValue="https://localhost:3000/assets/icon-80.png"/>
+        <bt:Image id="Icon.16x16" DefaultValue="https://ericb-bissell.github.io/rst-word-addin/assets/icon-16.png"/>
+        <bt:Image id="Icon.32x32" DefaultValue="https://ericb-bissell.github.io/rst-word-addin/assets/icon-32.png"/>
+        <bt:Image id="Icon.80x80" DefaultValue="https://ericb-bissell.github.io/rst-word-addin/assets/icon-80.png"/>
       </bt:Images>
       <bt:Urls>
-        <bt:Url id="Taskpane.Url" DefaultValue="https://localhost:3000/taskpane.html"/>
-        <bt:Url id="Commands.Url" DefaultValue="https://localhost:3000/commands.html"/>
-        <bt:Url id="Help.Url" DefaultValue="https://localhost:3000/help.html"/>
+        <bt:Url id="Taskpane.Url" DefaultValue="https://ericb-bissell.github.io/rst-word-addin/taskpane.html"/>
+        <bt:Url id="Commands.Url" DefaultValue="https://ericb-bissell.github.io/rst-word-addin/commands.html"/>
+        <bt:Url id="Help.Url" DefaultValue="https://ericb-bissell.github.io/rst-word-addin/help.html"/>
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="RstTab.Label" DefaultValue="RST"/>
