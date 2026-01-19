@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RST Word Add-in Help</title>
+  <link rel="stylesheet" href="help.css">
+</head>
+<body>
+  <div class="help-container">
+    <!-- Header -->
+    <header class="help-header">
+      <h1>RST Word Add-in Help</h1>
+      <button id="close-help" class="close-btn" aria-label="Close help">&times;</button>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="help-nav">
+      <button class="nav-tab active" data-section="getting-started">Getting Started</button>
+      <button class="nav-tab" data-section="formatting">Formatting</button>
+      <button class="nav-tab" data-section="custom-styles">Custom Styles</button>
+      <button class="nav-tab" data-section="troubleshooting">Troubleshooting</button>
+    </nav>
+
+    <!-- Content Sections -->
+    <main class="help-content">
+
+      <!-- Getting Started Section -->
+      <section id="getting-started" class="help-section active">
+        <h2>Getting Started</h2>
+
+        <div class="help-card">
+          <h3>What This Add-in Does</h3>
+          <p>Convert your Word documents to reStructuredText (RST) format for use with Sphinx, Read the Docs, and other documentation systems.</p>
+          <ul>
+            <li><strong>Preview</strong> &ndash; See your document as RST in real-time</li>
+            <li><strong>Copy</strong> &ndash; Copy RST text to clipboard</li>
+            <li><strong>Export</strong> &ndash; Download RST file with images as ZIP</li>
+          </ul>
+        </div>
+
+        <div class="help-card">
+          <h3>Quick Start</h3>
+          <ol>
+            <li>Open any Word document</li>
+            <li>Click <strong>RST Preview</strong> in the ribbon</li>
+            <li>The preview panel shows your document as RST</li>
+            <li>Click <strong>Copy</strong> or <strong>Export</strong></li>
+          </ol>
+        </div>
+
+        <div class="help-card">
+          <h3>Export Package</h3>
+          <p>When you export, you receive a ZIP file containing:</p>
+          <pre class="code-block">your-document.zip
+├── document.rst    (your converted document)
+└── images/         (extracted images)
+    ├── image_001.png
+    └── figure_002.png</pre>
+          <p>Extract the ZIP into your Sphinx project's source directory.</p>
+        </div>
+
+        <div class="help-card">
+          <h3>Buttons Reference</h3>
+          <table class="help-table">
+            <tr>
+              <td><strong>Refresh</strong></td>
+              <td>Update the preview manually</td>
+            </tr>
+            <tr>
+              <td><strong>Copy</strong></td>
+              <td>Copy RST text to clipboard</td>
+            </tr>
+            <tr>
+              <td><strong>Export</strong></td>
+              <td>Download ZIP with RST + images</td>
+            </tr>
+          </table>
+        </div>
+      </section>
+
+      <!-- Formatting Section -->
+      <section id="formatting" class="help-section">
+        <h2>Formatting Reference</h2>
+
+        <div class="help-card">
+          <h3>Text Formatting</h3>
+          <table class="help-table">
+            <tr>
+              <td><strong>Bold</strong></td>
+              <td><code>**text**</code></td>
+            </tr>
+            <tr>
+              <td><em>Italic</em></td>
+              <td><code>*text*</code></td>
+            </tr>
+            <tr>
+              <td><code>Code</code> (monospace font)</td>
+              <td><code>``text``</code></td>
+            </tr>
+          </table>
+          <p class="help-tip">Tip: Create a "Code" character style with Consolas font for inline code.</p>
+        </div>
+
+        <div class="help-card">
+          <h3>Headings</h3>
+          <table class="help-table">
+            <tr>
+              <td>Heading 1</td>
+              <td><code>====</code> with overline</td>
+            </tr>
+            <tr>
+              <td>Heading 2</td>
+              <td><code>====</code> underline</td>
+            </tr>
+            <tr>
+              <td>Heading 3</td>
+              <td><code>----</code> underline</td>
+            </tr>
+            <tr>
+              <td>Heading 4</td>
+              <td><code>~~~~</code> underline</td>
+            </tr>
+            <tr>
+              <td>Heading 5</td>
+              <td><code>^^^^</code> underline</td>
+            </tr>
+            <tr>
+              <td>Heading 6</td>
+              <td><code>""""</code> underline</td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="help-card">
+          <h3>Lists</h3>
+          <p><strong>Bulleted lists:</strong></p>
+          <pre class="code-block">- First item
+- Second item
+  - Nested item</pre>
+
+          <p><strong>Numbered lists:</strong></p>
+          <pre class="code-block">1. First item
+2. Second item
+3. Third item</pre>
+        </div>
+
+        <div class="help-card">
+          <h3>Links</h3>
+          <p>Hyperlinks in Word convert to:</p>
+          <pre class="code-block">`Link Text &lt;https://example.com&gt;`__</pre>
+        </div>
+
+        <div class="help-card">
+          <h3>Images</h3>
+          <p>Images convert to the <code>.. image::</code> directive:</p>
+          <pre class="code-block">.. image:: images/photo.png
+   :alt: Description
+   :width: 400px
+   :align: center</pre>
+          <p class="help-tip">Tip: Add alt text to images (right-click &rarr; Edit Alt Text) for better accessibility.</p>
+        </div>
+
+        <div class="help-card">
+          <h3>Figures (Images with Captions)</h3>
+          <p>Use <strong>References</strong> &rarr; <strong>Insert Caption</strong> to add a caption:</p>
+          <pre class="code-block">.. figure:: images/diagram.png
+   :align: center
+
+   Figure 1: System overview</pre>
+        </div>
+
+        <div class="help-card">
+          <h3>Tables</h3>
+          <p>Word tables convert to RST grid tables:</p>
+          <pre class="code-block">+-------+-------+
+| Col 1 | Col 2 |
++=======+=======+
+| A     | B     |
++-------+-------+</pre>
+          <p>Add a caption with <strong>References</strong> &rarr; <strong>Insert Caption</strong> &rarr; "Table".</p>
+        </div>
+
+        <div class="help-card">
+          <h3>Table of Contents</h3>
+          <p>Word TOC fields convert to:</p>
+          <pre class="code-block">.. contents:: Table of Contents
+   :depth: 3</pre>
+        </div>
+
+        <div class="help-card">
+          <h3>Unsupported Formatting</h3>
+          <p>The following have no RST equivalent:</p>
+          <ul>
+            <li>Underline</li>
+            <li>Strikethrough</li>
+            <li>Text color / highlight</li>
+            <li>Font changes</li>
+          </ul>
+          <p class="help-tip">Tip: Use custom styles like <code>rst_note</code> or <code>rst_warning</code> instead of colors to highlight important text.</p>
+        </div>
+      </section>
+
+      <!-- Custom Styles Section -->
+      <section id="custom-styles" class="help-section">
+        <h2>Custom RST Directive Styles</h2>
+
+        <div class="help-card">
+          <h3>How It Works</h3>
+          <p>Word paragraph styles starting with <code>rst_</code> convert to RST directives:</p>
+          <table class="help-table">
+            <tr>
+              <td><code>rst_note</code></td>
+              <td><code>.. note::</code></td>
+            </tr>
+            <tr>
+              <td><code>rst_warning</code></td>
+              <td><code>.. warning::</code></td>
+            </tr>
+            <tr>
+              <td><code>rst_code-block</code></td>
+              <td><code>.. code-block::</code></td>
+            </tr>
+            <tr>
+              <td><code>rst_need</code></td>
+              <td><code>.. need::</code></td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="help-card">
+          <h3>Creating a Custom Style</h3>
+          <ol>
+            <li>Go to <strong>Home</strong> tab &rarr; <strong>Styles</strong> panel</li>
+            <li>Click the small arrow to open Styles pane</li>
+            <li>Click <strong>New Style</strong></li>
+            <li>Name it starting with <code>rst_</code> (e.g., <code>rst_note</code>)</li>
+            <li>Set <strong>Style type</strong> to "Paragraph"</li>
+            <li>Click <strong>OK</strong></li>
+          </ol>
+          <p class="help-tip">Tip: Add a colored background or left border to make directive content visually distinct.</p>
+        </div>
+
+        <div class="help-card">
+          <h3>Simple Directive</h3>
+          <p>Apply <code>rst_note</code> style to a paragraph:</p>
+          <pre class="code-block">Remember to save your work!</pre>
+          <p><strong>Output:</strong></p>
+          <pre class="code-block">.. note::
+
+   Remember to save your work!</pre>
+        </div>
+
+        <div class="help-card">
+          <h3>Directive with Argument</h3>
+          <p>Put the argument in square brackets on the first line:</p>
+          <pre class="code-block">[python]
+def hello():
+    print("Hello!")</pre>
+          <p><strong>Output</strong> (with <code>rst_code-block</code> style):</p>
+          <pre class="code-block">.. code-block:: python
+
+   def hello():
+       print("Hello!")</pre>
+        </div>
+
+        <div class="help-card">
+          <h3>Directive with Options</h3>
+          <p>Add options using <code>:option: value</code> format:</p>
+          <pre class="code-block">[python]
+:linenos:
+:caption: Example Code
+def greet(name):
+    print(f"Hi, {name}!")</pre>
+          <p><strong>Output:</strong></p>
+          <pre class="code-block">.. code-block:: python
+   :linenos:
+   :caption: Example Code
+
+   def greet(name):
+       print(f"Hi, {name}!")</pre>
+        </div>
+
+        <div class="help-card">
+          <h3>Sphinx-Needs Requirements</h3>
+          <p>Style: <code>rst_req</code></p>
+          <pre class="code-block">:id: REQ-001
+:title: User Login
+:status: open
+The system shall authenticate users.</pre>
+          <p><strong>Output:</strong></p>
+          <pre class="code-block">.. req::
+   :id: REQ-001
+   :title: User Login
+   :status: open
+
+   The system shall authenticate users.</pre>
+        </div>
+
+        <div class="help-card">
+          <h3>Recommended Styles</h3>
+          <table class="help-table">
+            <tr>
+              <td><code>rst_note</code></td>
+              <td>Important notes</td>
+            </tr>
+            <tr>
+              <td><code>rst_warning</code></td>
+              <td>Warning messages</td>
+            </tr>
+            <tr>
+              <td><code>rst_tip</code></td>
+              <td>Helpful tips</td>
+            </tr>
+            <tr>
+              <td><code>rst_code-block</code></td>
+              <td>Code with syntax highlighting</td>
+            </tr>
+            <tr>
+              <td><code>rst_req</code></td>
+              <td>Requirements (sphinx-needs)</td>
+            </tr>
+            <tr>
+              <td><code>rst_todo</code></td>
+              <td>TODO items</td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="help-card">
+          <h3>Content Format Summary</h3>
+          <pre class="code-block">[argument]           &larr; Optional, first line
+:option1: value1     &larr; Optional, starts with :
+:option2: value2
+
+Body content here    &larr; Rest becomes directive body
+More content...</pre>
+        </div>
+      </section>
+
+      <!-- Troubleshooting Section -->
+      <section id="troubleshooting" class="help-section">
+        <h2>Troubleshooting</h2>
+
+        <div class="help-card">
+          <h3>Preview Not Updating</h3>
+          <ul>
+            <li>Click the <strong>Refresh</strong> button to manually update</li>
+            <li>Check if the document has unsaved changes</li>
+            <li>Try closing and reopening the preview panel</li>
+          </ul>
+        </div>
+
+        <div class="help-card">
+          <h3>Images Missing in Export</h3>
+          <ul>
+            <li>Ensure images are inserted as <strong>inline pictures</strong> (not floating/text wrap)</li>
+            <li>Very large images may take time to process</li>
+            <li>Try reducing image size before inserting</li>
+          </ul>
+        </div>
+
+        <div class="help-card">
+          <h3>Custom Styles Not Converting</h3>
+          <ul>
+            <li>Style name must start with <code>rst_</code> (lowercase)</li>
+            <li>Ensure the style is applied to the <strong>entire paragraph</strong></li>
+            <li>Check for typos in the style name</li>
+            <li>Style type must be "Paragraph" (not "Character")</li>
+          </ul>
+        </div>
+
+        <div class="help-card">
+          <h3>Export Download Fails</h3>
+          <ul>
+            <li>Check your browser's download settings</li>
+            <li>Ensure pop-ups are not blocked for Office.com</li>
+            <li>Try a different browser (Edge, Chrome, Firefox)</li>
+            <li>Check if you have enough disk space</li>
+          </ul>
+        </div>
+
+        <div class="help-card">
+          <h3>Tables Look Wrong</h3>
+          <ul>
+            <li>Avoid heavily merged cells &ndash; simplify the table structure</li>
+            <li>Nested tables are not supported</li>
+            <li>Very wide tables may need manual adjustment in RST</li>
+          </ul>
+        </div>
+
+        <div class="help-card">
+          <h3>Add-in Not Loading</h3>
+          <ul>
+            <li>Clear browser cache and reload the page</li>
+            <li>Check that JavaScript is enabled</li>
+            <li>Try sideloading the manifest again</li>
+            <li>Ensure you're using a supported browser</li>
+          </ul>
+        </div>
+
+        <div class="help-card">
+          <h3>Getting More Help</h3>
+          <p>If you're still having issues:</p>
+          <ul>
+            <li>Check the browser console for error messages (F12 &rarr; Console)</li>
+            <li>Report issues on the project's GitHub repository</li>
+          </ul>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="help-footer">
+      <p>RST Word Add-in &bull; <a href="#" id="back-to-top">Back to top</a></p>
+    </footer>
+  </div>
+
+  <script src="help.js"></script>
+</body>
+</html>
