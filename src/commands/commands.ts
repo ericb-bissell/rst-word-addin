@@ -3,6 +3,8 @@
  * Handles function commands executed from ribbon buttons
  */
 
+import { convertToRst, ExtractedImage } from '../converter';
+
 // Initialize Office
 Office.onReady(() => {
   // Office is ready
@@ -20,18 +22,16 @@ async function exportToRst(event: Office.AddinCommands.Event): Promise<void> {
       await context.sync();
 
       const html = htmlResult.value;
-      const rst = convertHtmlToRst(html);
+      const result = convertToRst(html, {
+        imageDirectory: 'images/',
+      });
 
-      // Download RST file
-      const blob = new Blob([rst], { type: 'text/x-rst' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'document.rst';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      // Export based on whether we have images
+      if (result.images.length > 0) {
+        await exportAsZip(result.rst, result.images);
+      } else {
+        downloadRstFile(result.rst);
+      }
     });
   } catch (error) {
     console.error('Export error:', error);
@@ -53,9 +53,9 @@ async function copyRstToClipboard(event: Office.AddinCommands.Event): Promise<vo
       await context.sync();
 
       const html = htmlResult.value;
-      const rst = convertHtmlToRst(html);
+      const result = convertToRst(html);
 
-      await navigator.clipboard.writeText(rst);
+      await navigator.clipboard.writeText(result.rst);
     });
   } catch (error) {
     console.error('Copy error:', error);
@@ -66,124 +66,54 @@ async function copyRstToClipboard(event: Office.AddinCommands.Event): Promise<vo
 }
 
 /**
- * Basic HTML to RST conversion (placeholder)
- * Full implementation will be in the converter module
+ * Download RST file directly
  */
-function convertHtmlToRst(html: string): string {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-
-  let rst = '';
-  const body = doc.body;
-
-  if (body) {
-    rst = processNode(body);
-  }
-
-  return rst.trim();
+function downloadRstFile(rst: string): void {
+  const blob = new Blob([rst], { type: 'text/x-rst' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'document.rst';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 /**
- * Process DOM node to RST
+ * Export as ZIP file with RST and images
  */
-function processNode(node: Node): string {
-  let result = '';
+async function exportAsZip(rst: string, images: ExtractedImage[]): Promise<void> {
+  // Dynamically import JSZip
+  const JSZip = (await import('jszip')).default;
 
-  node.childNodes.forEach((child) => {
-    if (child.nodeType === Node.TEXT_NODE) {
-      result += child.textContent || '';
-    } else if (child.nodeType === Node.ELEMENT_NODE) {
-      const element = child as HTMLElement;
-      const tagName = element.tagName.toLowerCase();
+  const zip = new JSZip();
 
-      switch (tagName) {
-        case 'h1':
-          const h1Text = element.textContent || '';
-          const h1Line = '='.repeat(h1Text.length);
-          result += `\n${h1Line}\n${h1Text}\n${h1Line}\n\n`;
-          break;
+  // Add RST file
+  zip.file('document.rst', rst);
 
-        case 'h2':
-          const h2Text = element.textContent || '';
-          result += `\n${h2Text}\n${'='.repeat(h2Text.length)}\n\n`;
-          break;
-
-        case 'h3':
-          const h3Text = element.textContent || '';
-          result += `\n${h3Text}\n${'-'.repeat(h3Text.length)}\n\n`;
-          break;
-
-        case 'h4':
-          const h4Text = element.textContent || '';
-          result += `\n${h4Text}\n${'~'.repeat(h4Text.length)}\n\n`;
-          break;
-
-        case 'h5':
-          const h5Text = element.textContent || '';
-          result += `\n${h5Text}\n${'^'.repeat(h5Text.length)}\n\n`;
-          break;
-
-        case 'h6':
-          const h6Text = element.textContent || '';
-          result += `\n${h6Text}\n${'"'.repeat(h6Text.length)}\n\n`;
-          break;
-
-        case 'p':
-          result += `${processNode(element)}\n\n`;
-          break;
-
-        case 'strong':
-        case 'b':
-          result += `**${element.textContent}**`;
-          break;
-
-        case 'em':
-        case 'i':
-          result += `*${element.textContent}*`;
-          break;
-
-        case 'code':
-          result += `\`\`${element.textContent}\`\``;
-          break;
-
-        case 'a':
-          const href = element.getAttribute('href');
-          const linkText = element.textContent;
-          if (href) {
-            result += `\`${linkText} <${href}>\`__`;
-          } else {
-            result += linkText;
-          }
-          break;
-
-        case 'ul':
-          element.querySelectorAll(':scope > li').forEach((li) => {
-            result += `- ${li.textContent?.trim()}\n`;
-          });
-          result += '\n';
-          break;
-
-        case 'ol':
-          let num = 1;
-          element.querySelectorAll(':scope > li').forEach((li) => {
-            result += `${num}. ${li.textContent?.trim()}\n`;
-            num++;
-          });
-          result += '\n';
-          break;
-
-        case 'br':
-          result += '\n';
-          break;
-
-        default:
-          result += processNode(element);
-          break;
+  // Create images folder and add images
+  const imagesFolder = zip.folder('images');
+  if (imagesFolder) {
+    for (const image of images) {
+      if (image.base64Data) {
+        // Extract just the filename from the path
+        const filename = image.filename.replace('images/', '');
+        imagesFolder.file(filename, image.base64Data, { base64: true });
       }
     }
-  });
+  }
 
-  return result;
+  // Generate ZIP and download
+  const content = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(content);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'document.zip';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // Register commands with Office

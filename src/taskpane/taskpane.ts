@@ -4,6 +4,7 @@
  */
 
 import './taskpane.css';
+import { convertToRst, ConversionResult, ExtractedImage } from '../converter';
 
 // UI Elements
 let refreshBtn: HTMLButtonElement;
@@ -24,16 +25,33 @@ let toastMessage: HTMLElement;
 
 // State
 let currentRst: string = '';
+let currentImages: ExtractedImage[] = [];
+let conversionResult: ConversionResult | null = null;
 let isLoading: boolean = false;
 
 /**
  * Initialize the add-in when Office is ready
  */
 Office.onReady((info) => {
-  if (info.host === Office.HostType.Word) {
-    initializeUI();
-    bindEvents();
-    setStatus('Ready');
+  console.log('Office.onReady called', info);
+  try {
+    if (info.host === Office.HostType.Word) {
+      initializeUI();
+      bindEvents();
+      setStatus('Ready');
+    } else {
+      // For testing outside of Word, still initialize UI
+      console.log('Running outside Word, initializing anyway for host:', info.host);
+      initializeUI();
+      bindEvents();
+      setStatus('Ready (standalone mode)');
+    }
+  } catch (error) {
+    console.error('Initialization error:', error);
+    const errorDiv = document.createElement('pre');
+    errorDiv.style.color = 'red';
+    errorDiv.textContent = `Initialization Error: ${error}`;
+    document.body.prepend(errorDiv);
   }
 });
 
@@ -152,6 +170,7 @@ function showError(message: string): void {
  * Handle refresh button click
  */
 async function handleRefresh(): Promise<void> {
+  console.log('handleRefresh called');
   if (isLoading) return;
 
   isLoading = true;
@@ -159,28 +178,62 @@ async function handleRefresh(): Promise<void> {
   setStatus('Converting...');
 
   try {
+    console.log('Starting Word.run...');
     await Word.run(async (context) => {
+      console.log('Inside Word.run');
       // Get document body
       const body = context.document.body;
 
       // Get HTML representation
+      console.log('Getting HTML...');
       const htmlResult = body.getHtml();
 
       await context.sync();
+      console.log('Got HTML, length:', htmlResult.value?.length);
 
       const html = htmlResult.value;
 
-      // Convert HTML to RST (placeholder - actual conversion will be implemented)
-      currentRst = convertHtmlToRst(html);
+      // Convert HTML to RST using the converter module
+      console.log('Converting HTML to RST...');
+      console.log('HTML preview:', html?.substring(0, 500));
+
+      conversionResult = convertToRst(html, {
+        includeMetadata: false,
+        addGeneratedComment: false,
+        imageDirectory: 'images/',
+      });
+
+      console.log('Conversion complete, RST length:', conversionResult.rst?.length);
+      console.log('RST preview:', conversionResult.rst?.substring(0, 200));
+
+      currentRst = conversionResult.rst;
+      currentImages = conversionResult.images;
 
       // Update preview
-      rstPreview.textContent = currentRst;
+      rstPreview.textContent = currentRst || '(No content converted)';
       showState('preview');
-      setStatus(`Preview updated - ${currentRst.length} characters`);
+
+      // Build status message
+      let statusMsg = `Preview updated - ${currentRst.length} characters`;
+      if (currentImages.length > 0) {
+        statusMsg += `, ${currentImages.length} image${currentImages.length > 1 ? 's' : ''}`;
+      }
+      if (conversionResult.warnings.length > 0) {
+        statusMsg += ` (${conversionResult.warnings.length} warning${conversionResult.warnings.length > 1 ? 's' : ''})`;
+        console.warn('Conversion warnings:', conversionResult.warnings);
+      }
+      setStatus(statusMsg);
     });
   } catch (error) {
     console.error('Error converting document:', error);
-    showError(error instanceof Error ? error.message : 'Failed to convert document');
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('Error details:', errorMsg);
+    showError(`Error: ${errorMsg}`);
+    // Also show in preview for debugging
+    if (rstPreview) {
+      rstPreview.textContent = `ERROR: ${errorMsg}\n\nStack: ${error instanceof Error ? error.stack : 'N/A'}`;
+      showState('preview');
+    }
   } finally {
     isLoading = false;
   }
@@ -217,25 +270,72 @@ async function handleExport(): Promise<void> {
   setStatus('Preparing export...');
 
   try {
-    // For now, just download the RST file
-    // Full ZIP export with images will be implemented later
-    const blob = new Blob([currentRst], { type: 'text/x-rst' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'document.rst';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    // If there are images, create a ZIP file
+    if (currentImages.length > 0) {
+      await exportAsZip();
+    } else {
+      // No images, just download the RST file
+      downloadRstFile();
+    }
 
-    showToast('RST file downloaded', 'success');
+    showToast('Export complete', 'success');
     setStatus('Export complete');
   } catch (error) {
     console.error('Error exporting:', error);
     showToast('Failed to export', 'error');
     setStatus('Export failed');
   }
+}
+
+/**
+ * Download RST file directly
+ */
+function downloadRstFile(): void {
+  const blob = new Blob([currentRst], { type: 'text/x-rst' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'document.rst';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Export as ZIP file with RST and images
+ */
+async function exportAsZip(): Promise<void> {
+  // Dynamically import JSZip
+  const JSZip = (await import('jszip')).default;
+
+  const zip = new JSZip();
+
+  // Add RST file
+  zip.file('document.rst', currentRst);
+
+  // Create images folder and add images
+  const imagesFolder = zip.folder('images');
+  if (imagesFolder) {
+    for (const image of currentImages) {
+      if (image.base64Data) {
+        // Extract just the filename from the path
+        const filename = image.filename.replace('images/', '');
+        imagesFolder.file(filename, image.base64Data, { base64: true });
+      }
+    }
+  }
+
+  // Generate ZIP and download
+  const content = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(content);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'document.zip';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 /**
@@ -263,133 +363,3 @@ function hideHelp(): void {
   helpPanel.style.display = 'none';
 }
 
-/**
- * Convert HTML to RST (placeholder implementation)
- * This will be replaced with the full converter module
- */
-function convertHtmlToRst(html: string): string {
-  // Basic placeholder conversion
-  // The actual converter will be implemented in the converter module
-
-  // Create a temporary DOM element to parse HTML
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-
-  let rst = '';
-
-  // Process body content
-  const body = doc.body;
-  if (body) {
-    rst = processNode(body);
-  }
-
-  return rst.trim();
-}
-
-/**
- * Process a DOM node and convert to RST (basic implementation)
- */
-function processNode(node: Node): string {
-  let result = '';
-
-  node.childNodes.forEach((child) => {
-    if (child.nodeType === Node.TEXT_NODE) {
-      result += child.textContent || '';
-    } else if (child.nodeType === Node.ELEMENT_NODE) {
-      const element = child as HTMLElement;
-      const tagName = element.tagName.toLowerCase();
-
-      switch (tagName) {
-        case 'h1':
-          const h1Text = element.textContent || '';
-          const h1Line = '='.repeat(h1Text.length);
-          result += `\n${h1Line}\n${h1Text}\n${h1Line}\n\n`;
-          break;
-
-        case 'h2':
-          const h2Text = element.textContent || '';
-          result += `\n${h2Text}\n${'='.repeat(h2Text.length)}\n\n`;
-          break;
-
-        case 'h3':
-          const h3Text = element.textContent || '';
-          result += `\n${h3Text}\n${'-'.repeat(h3Text.length)}\n\n`;
-          break;
-
-        case 'h4':
-          const h4Text = element.textContent || '';
-          result += `\n${h4Text}\n${'~'.repeat(h4Text.length)}\n\n`;
-          break;
-
-        case 'h5':
-          const h5Text = element.textContent || '';
-          result += `\n${h5Text}\n${'^'.repeat(h5Text.length)}\n\n`;
-          break;
-
-        case 'h6':
-          const h6Text = element.textContent || '';
-          result += `\n${h6Text}\n${'"'.repeat(h6Text.length)}\n\n`;
-          break;
-
-        case 'p':
-          result += `${processNode(element)}\n\n`;
-          break;
-
-        case 'strong':
-        case 'b':
-          result += `**${element.textContent}**`;
-          break;
-
-        case 'em':
-        case 'i':
-          result += `*${element.textContent}*`;
-          break;
-
-        case 'code':
-          result += `\`\`${element.textContent}\`\``;
-          break;
-
-        case 'a':
-          const href = element.getAttribute('href');
-          const linkText = element.textContent;
-          if (href) {
-            result += `\`${linkText} <${href}>\`__`;
-          } else {
-            result += linkText;
-          }
-          break;
-
-        case 'ul':
-          element.querySelectorAll(':scope > li').forEach((li) => {
-            result += `- ${li.textContent?.trim()}\n`;
-          });
-          result += '\n';
-          break;
-
-        case 'ol':
-          let num = 1;
-          element.querySelectorAll(':scope > li').forEach((li) => {
-            result += `${num}. ${li.textContent?.trim()}\n`;
-            num++;
-          });
-          result += '\n';
-          break;
-
-        case 'br':
-          result += '\n';
-          break;
-
-        case 'div':
-        case 'span':
-          result += processNode(element);
-          break;
-
-        default:
-          result += processNode(element);
-          break;
-      }
-    }
-  });
-
-  return result;
-}

@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<OfficeApp
+  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+  xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
+  xsi:type="TaskPaneApp">
+
+  <!-- Basic Add-in Information -->
+  <Id>b2abbb1a-1e8d-465c-97e0-e5f19308fb5e</Id>
+  <Version>1.0.0.0</Version>
+  <ProviderName>RST Word Add-in</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+  <DisplayName DefaultValue="RST Preview (Dev)"/>
+  <Description DefaultValue="Preview and export Word documents as reStructuredText (RST) for Sphinx and documentation systems."/>
+  <IconUrl DefaultValue="http://localhost:3000/assets/icon-32.png"/>
+  <HighResolutionIconUrl DefaultValue="http://localhost:3000/assets/icon-80.png"/>
+  <SupportUrl DefaultValue="https://github.com/"/>
+
+  <!-- Supported Office Applications -->
+  <Hosts>
+    <Host Name="Document"/>
+  </Hosts>
+
+  <!-- Requirements -->
+  <Requirements>
+    <Sets>
+      <Set Name="WordApi" MinVersion="1.1"/>
+    </Sets>
+  </Requirements>
+
+  <!-- Default Settings -->
+  <DefaultSettings>
+    <SourceLocation DefaultValue="http://localhost:3000/taskpane.html"/>
+  </DefaultSettings>
+
+  <!-- Permissions -->
+  <Permissions>ReadWriteDocument</Permissions>
+
+  <!-- Version Overrides for Ribbon Commands -->
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
+    <Hosts>
+      <Host xsi:type="Document">
+        <DesktopFormFactor>
+          <!-- Function File for Commands -->
+          <FunctionFile resid="Commands.Url"/>
+
+          <!-- Extension Point: Ribbon -->
+          <ExtensionPoint xsi:type="PrimaryCommandSurface">
+            <!-- Custom Tab -->
+            <CustomTab id="RstTab">
+              <Group id="RstGroup">
+                <Label resid="RstGroup.Label"/>
+                <Icon>
+                  <bt:Image size="16" resid="Icon.16x16"/>
+                  <bt:Image size="32" resid="Icon.32x32"/>
+                  <bt:Image size="80" resid="Icon.80x80"/>
+                </Icon>
+
+                <!-- Preview Button (Opens Taskpane) -->
+                <Control xsi:type="Button" id="PreviewButton">
+                  <Label resid="PreviewButton.Label"/>
+                  <Supertip>
+                    <Title resid="PreviewButton.Label"/>
+                    <Description resid="PreviewButton.Tooltip"/>
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16x16"/>
+                    <bt:Image size="32" resid="Icon.32x32"/>
+                    <bt:Image size="80" resid="Icon.80x80"/>
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>RstTaskpane</TaskpaneId>
+                    <SourceLocation resid="Taskpane.Url"/>
+                  </Action>
+                </Control>
+
+                <!-- Export Button (Function Command) -->
+                <Control xsi:type="Button" id="ExportButton">
+                  <Label resid="ExportButton.Label"/>
+                  <Supertip>
+                    <Title resid="ExportButton.Label"/>
+                    <Description resid="ExportButton.Tooltip"/>
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16x16"/>
+                    <bt:Image size="32" resid="Icon.32x32"/>
+                    <bt:Image size="80" resid="Icon.80x80"/>
+                  </Icon>
+                  <Action xsi:type="ExecuteFunction">
+                    <FunctionName>exportToRst</FunctionName>
+                  </Action>
+                </Control>
+
+                <!-- Copy Button (Function Command) -->
+                <Control xsi:type="Button" id="CopyButton">
+                  <Label resid="CopyButton.Label"/>
+                  <Supertip>
+                    <Title resid="CopyButton.Label"/>
+                    <Description resid="CopyButton.Tooltip"/>
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16x16"/>
+                    <bt:Image size="32" resid="Icon.32x32"/>
+                    <bt:Image size="80" resid="Icon.80x80"/>
+                  </Icon>
+                  <Action xsi:type="ExecuteFunction">
+                    <FunctionName>copyRstToClipboard</FunctionName>
+                  </Action>
+                </Control>
+
+              </Group>
+              <Label resid="RstTab.Label"/>
+            </CustomTab>
+          </ExtensionPoint>
+        </DesktopFormFactor>
+      </Host>
+    </Hosts>
+
+    <!-- Resources -->
+    <Resources>
+      <bt:Images>
+        <bt:Image id="Icon.16x16" DefaultValue="http://localhost:3000/assets/icon-16.png"/>
+        <bt:Image id="Icon.32x32" DefaultValue="http://localhost:3000/assets/icon-32.png"/>
+        <bt:Image id="Icon.80x80" DefaultValue="http://localhost:3000/assets/icon-80.png"/>
+      </bt:Images>
+      <bt:Urls>
+        <bt:Url id="Taskpane.Url" DefaultValue="http://localhost:3000/taskpane.html"/>
+        <bt:Url id="Commands.Url" DefaultValue="http://localhost:3000/commands.html"/>
+        <bt:Url id="Help.Url" DefaultValue="http://localhost:3000/help.html"/>
+      </bt:Urls>
+      <bt:ShortStrings>
+        <bt:String id="RstTab.Label" DefaultValue="RST"/>
+        <bt:String id="RstGroup.Label" DefaultValue="reStructuredText"/>
+        <bt:String id="PreviewButton.Label" DefaultValue="Preview"/>
+        <bt:String id="ExportButton.Label" DefaultValue="Export"/>
+        <bt:String id="CopyButton.Label" DefaultValue="Copy"/>
+      </bt:ShortStrings>
+      <bt:LongStrings>
+        <bt:String id="PreviewButton.Tooltip" DefaultValue="Open the RST preview panel to see your document as reStructuredText"/>
+        <bt:String id="ExportButton.Tooltip" DefaultValue="Export document as RST file with images (ZIP download)"/>
+        <bt:String id="CopyButton.Tooltip" DefaultValue="Copy RST content to clipboard"/>
+      </bt:LongStrings>
+    </Resources>
+  </VersionOverrides>
+</OfficeApp>

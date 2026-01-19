@@ -28,12 +28,14 @@
     "jszip": "^3.10.1"
   },
   "devDependencies": {
-    "@types/office-js": "^1.0.377",
     "@types/node": "^20.10.0",
+    "@types/office-js": "^1.0.377",
     "copy-webpack-plugin": "^12.0.2",
     "css-loader": "^6.8.1",
     "html-webpack-plugin": "^5.6.0",
+    "localtunnel": "^2.0.2",
     "mini-css-extract-plugin": "^2.7.6",
+    "ngrok": "^5.0.0-beta.2",
     "office-addin-dev-certs": "^1.13.1",
     "style-loader": "^3.3.3",
     "ts-loader": "^9.5.1",

@@ -78,6 +78,8 @@ module.exports = async (env, argv) => {
         template: './src/taskpane/taskpane.html',
         filename: 'taskpane.html',
         chunks: ['taskpane'],
+        scriptLoading: 'blocking',
+        inject: 'body',
       }),
 
       // Help HTML
@@ -93,6 +95,8 @@ module.exports = async (env, argv) => {
         template: './src/commands/commands.html',
         filename: 'commands.html',
         chunks: ['commands'],
+        scriptLoading: 'blocking',
+        inject: 'body',
       }),
 
       // Extract CSS in production
@@ -134,7 +138,9 @@ module.exports = async (env, argv) => {
       },
       headers: {
         'Access-Control-Allow-Origin': '*',
+        'Content-Security-Policy': "default-src 'self' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://appsforoffice.microsoft.com https://*.trycloudflare.com; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:; font-src 'self' https: data:; connect-src 'self' https:; frame-src 'self' https:; media-src 'self' https: data:;",
       },
+      allowedHosts: 'all',
       server: httpsOptions
         ? {
             type: 'https',

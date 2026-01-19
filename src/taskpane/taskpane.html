@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' https://appsforoffice.microsoft.com https://*.trycloudflare.com 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' https:; connect-src 'self' https:; frame-src 'self' https:;">
   <title>RST Preview</title>
   <link rel="stylesheet" href="taskpane.css">
   <!-- Office.js -->
@@ -80,9 +81,12 @@
       <span id="status-text">Ready</span>
     </footer>
 
-    <!-- Help Panel (iframe) -->
+    <!-- Help Panel (disabled for now due to CSP issues in Word Online) -->
     <div id="help-panel" class="help-panel" style="display: none;">
-      <iframe id="help-iframe" src="help.html" title="Help"></iframe>
+      <div style="padding: 20px; text-align: center;">
+        <p>Help documentation is available at the project repository.</p>
+        <p><small>Help panel disabled in Word Online due to security restrictions.</small></p>
+      </div>
     </div>
   </div>
 
