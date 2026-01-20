@@ -758,10 +758,17 @@ function normalizeLength(value: string): string {
 }
 
 /**
+ * Normalize whitespace - collapse multiple spaces/newlines into single space
+ */
+function normalizeWhitespace(text: string): string {
+  return text.replace(/\s+/g, ' ');
+}
+
+/**
  * Get text content with basic formatting preserved
  */
 function getTextContent(element: HTMLElement): string {
-  return element.textContent?.trim() || '';
+  return normalizeWhitespace(element.textContent || '').trim();
 }
 
 /**
@@ -772,7 +779,8 @@ function getFormattedContent(element: HTMLElement): string {
 
   for (const node of Array.from(element.childNodes)) {
     if (node.nodeType === Node.TEXT_NODE) {
-      result += node.textContent;
+      // Normalize whitespace in text nodes (collapse newlines/spaces)
+      result += normalizeWhitespace(node.textContent || '');
     } else if (node.nodeType === Node.ELEMENT_NODE) {
       const el = node as HTMLElement;
       const tag = el.tagName.toUpperCase();

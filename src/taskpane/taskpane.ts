@@ -7,7 +7,7 @@ import './taskpane.css';
 import { convertToRst, ConversionResult, ExtractedImage } from '../converter';
 
 // Version for debugging cache issues
-const VERSION = '1.0.4';
+const VERSION = '1.0.5';
 
 // UI Elements
 let refreshBtn: HTMLButtonElement;
@@ -212,18 +212,24 @@ async function handleRefresh(): Promise<void> {
       currentRst = conversionResult.rst;
       currentImages = conversionResult.images;
 
-      // Update preview - show debug info if no content
-      if (!currentRst) {
-        const elemCount = conversionResult.elements?.length ?? 0;
-        const elemTypes = conversionResult.elements?.map(e => e.type).join(', ') || 'none';
-        const elemDetails = conversionResult.elements?.map(e => JSON.stringify(e, null, 2)).join('\n\n') || 'none';
-        rstPreview.textContent = `(No content converted)
+      // Update preview - always show debug info at the end
+      const elemCount = conversionResult.elements?.length ?? 0;
+      const elemTypes = conversionResult.elements?.map(e => e.type).join(', ') || 'none';
+      const warnings = conversionResult.warnings.join(', ') || 'none';
+
+      const debugInfo = `
 
 --- DEBUG INFO ---
 Version: ${VERSION}
 Elements found: ${elemCount}
 Element types: ${elemTypes}
-Warnings: ${conversionResult.warnings.join(', ') || 'none'}
+Warnings: ${warnings}
+--- END DEBUG ---`;
+
+      if (!currentRst) {
+        const elemDetails = conversionResult.elements?.map(e => JSON.stringify(e, null, 2)).join('\n\n') || 'none';
+        rstPreview.textContent = `(No content converted)
+${debugInfo}
 
 --- ELEMENT DETAILS ---
 ${elemDetails}
@@ -233,7 +239,7 @@ ${html}
 
 --- END HTML ---`;
       } else {
-        rstPreview.textContent = currentRst;
+        rstPreview.textContent = currentRst + debugInfo;
       }
       showState('preview');
 
