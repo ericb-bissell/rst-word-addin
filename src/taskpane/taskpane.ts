@@ -13,7 +13,7 @@ interface OoxmlImage {
 }
 
 // Version for debugging cache issues
-const VERSION = '1.0.20';
+const VERSION = '1.0.21';
 
 // UI Elements
 let refreshBtn: HTMLButtonElement;
@@ -490,12 +490,6 @@ async function exportAsZip(): Promise<number> {
   zip.file('document.rst', currentRst);
   console.log('Added document.rst to ZIP');
 
-  // Add OOXML file for debugging/inspection
-  if (currentOoxml) {
-    zip.file('document.ooxml', currentOoxml);
-    console.log('Added document.ooxml to ZIP');
-  }
-
   // Create images folder and add images
   const imagesFolder = zip.folder('images');
   let addedCount = 0;
@@ -512,7 +506,14 @@ async function exportAsZip(): Promise<number> {
         imagesFolder.file(filename, image.base64Data, { base64: true });
         addedCount++;
       } else {
-        console.log(`  SKIPPED: No base64Data for ${image.filename}`);
+        // Image couldn't be exported - save OOXML for debugging
+        const filename = image.filename.replace('images/', '');
+        const ooxmlFilename = filename.replace(/\.[^.]+$/, '.ooxml');
+        console.log(`  SKIPPED: No base64Data for ${image.filename}, saving ${ooxmlFilename}`);
+        if (currentOoxml) {
+          imagesFolder.file(ooxmlFilename, currentOoxml);
+          console.log(`  Added ${ooxmlFilename} to ZIP for debugging`);
+        }
         skippedCount++;
       }
     }
