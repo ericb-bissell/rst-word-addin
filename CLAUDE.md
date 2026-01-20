@@ -22,15 +22,25 @@ npx office-addin-dev-certs install   # Generate HTTPS certs
 
 **Important:** Update the version in `src/taskpane/taskpane.ts` whenever making changes:
 ```typescript
-const VERSION = '1.0.16';  // Increment this
+const VERSION = '1.0.18';  // Increment this
 ```
 This version displays in the debug panel and helps diagnose cache issues.
+
+## Deployment
+
+Uses **GitHub Pages** with **GitHub Actions** for automated deployment.
+
+- Push to `main` branch triggers the deployment workflow
+- Build output goes to GitHub Pages
+- Production URL: https://ericb-bissell.github.io/rst-word-addin/
+
+To deploy: simply push to `main` and the GitHub Action will build and deploy automatically.
 
 ## Project Overview
 
 Microsoft Word Add-in that converts Word documents to reStructuredText (RST). Runs entirely client-side in Word Online/Desktop webview - the server only hosts static files.
 
-**Current version:** 1.0.16
+**Current version:** 1.0.18
 **Deployed:** https://ericb-bissell.github.io/rst-word-addin/
 
 ## Architecture
@@ -80,37 +90,41 @@ await Word.run(async (context) => {
 });
 ```
 
-### Key Pattern: Image Extraction
+### Key Pattern: Image Extraction via OOXML
 
-Images must be extracted using Office.js API, not from HTML blob URLs.
-**Important:** `body.inlinePictures` only returns direct inline pictures - images inside tables need separate extraction:
+Images must be extracted from OOXML, not from HTML blob URLs or `inlinePictures` API.
+
+**Why OOXML?** The `body.inlinePictures` API only returns inline pictures - it misses images inside text boxes, shapes, and floating objects. OOXML contains ALL embedded images.
 
 ```typescript
-// Get body pictures
-const inlinePictures = body.inlinePictures;
-inlinePictures.load('items');
-
-// Get tables (images inside layout tables won't be in body.inlinePictures)
-const tables = body.tables;
-tables.load('items');
+// Get OOXML which contains all images
+const ooxmlResult = body.getOoxml();
 await context.sync();
 
-// Collect from body
-const allPictures: Word.InlinePicture[] = [...inlinePictures.items];
+// Parse OOXML to extract images from pkg:part elements
+function extractImagesFromOoxml(ooxml: string): OoxmlImage[] {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(ooxml, 'application/xml');
+  const parts = doc.getElementsByTagName('pkg:part');
 
-// Collect from tables
-for (const table of tables.items) {
-  const tablePics = table.getRange().inlinePictures;
-  tablePics.load('items');
-  await context.sync();
-  allPictures.push(...tablePics.items);
-}
+  const images: OoxmlImage[] = [];
+  for (const part of parts) {
+    const name = part.getAttribute('pkg:name') || '';
+    const contentType = part.getAttribute('pkg:contentType') || '';
 
-// Extract base64 from each
-for (const picture of allPictures) {
-  const base64Result = picture.getBase64ImageSrc();
-  await context.sync();
-  // base64Result.value contains the image data
+    // Images are in /word/media/ folder
+    if (name.includes('/media/') && contentType.startsWith('image/')) {
+      const binaryData = part.getElementsByTagName('pkg:binaryData')[0];
+      if (binaryData?.textContent) {
+        images.push({
+          name,
+          base64: binaryData.textContent.replace(/\s/g, ''),
+          contentType,
+        });
+      }
+    }
+  }
+  return images;
 }
 ```
 
