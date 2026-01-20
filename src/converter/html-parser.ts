@@ -994,6 +994,39 @@ function postProcessElements(elements: AnyDocumentElement[]): AnyDocumentElement
       }
     }
 
+    // Associate caption paragraphs with following tables
+    if (current.type === 'table') {
+      const table = current as TableElement;
+      const prev = result[result.length - 1];
+
+      if (prev && prev.type === 'paragraph') {
+        const para = prev as ParagraphElement;
+        const styleLC = (para.style || '').toLowerCase();
+        const contentLC = para.content.toLowerCase();
+
+        // Check if previous paragraph is a table caption
+        if (styleLC.includes('caption') || contentLC.startsWith('table ')) {
+          // Parse the caption
+          const captionText = para.content.trim();
+          const parsed = parseCaption(captionText);
+
+          if (parsed && parsed.type === 'Table') {
+            table.data.options.caption = parsed.text;
+            table.data.options.tableNumber = parsed.number;
+            table.data.options.name = `table-${parsed.number.replace(/\./g, '-')}`;
+          } else if (styleLC.includes('caption')) {
+            // MsoCaption style but couldn't parse - use full text
+            table.data.options.caption = captionText;
+          }
+
+          // Remove the caption paragraph from results (it's now part of the table)
+          if (table.data.options.caption) {
+            result.pop();
+          }
+        }
+      }
+    }
+
     result.push(current);
   }
 
