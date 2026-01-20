@@ -13,7 +13,7 @@ interface OoxmlImage {
 }
 
 // Version for debugging cache issues
-const VERSION = '1.0.18';
+const VERSION = '1.0.19';
 
 // UI Elements
 let refreshBtn: HTMLButtonElement;
@@ -433,14 +433,20 @@ async function handleExport(): Promise<void> {
   try {
     // If there are images, create a ZIP file
     if (currentImages.length > 0) {
-      await exportAsZip();
+      const skippedCount = await exportAsZip();
+      if (skippedCount > 0) {
+        showToast(`Export complete (${skippedCount} image${skippedCount > 1 ? 's' : ''} could not be exported - Shapes are not supported)`, 'info');
+        setStatus(`Export complete (${skippedCount} image${skippedCount > 1 ? 's' : ''} skipped)`);
+      } else {
+        showToast('Export complete', 'success');
+        setStatus('Export complete');
+      }
     } else {
       // No images, just download the RST file
       downloadRstFile();
+      showToast('Export complete', 'success');
+      setStatus('Export complete');
     }
-
-    showToast('Export complete', 'success');
-    setStatus('Export complete');
   } catch (error) {
     console.error('Error exporting:', error);
     showToast('Failed to export', 'error');
@@ -465,8 +471,9 @@ function downloadRstFile(): void {
 
 /**
  * Export as ZIP file with RST and images
+ * @returns Number of images that couldn't be exported
  */
-async function exportAsZip(): Promise<void> {
+async function exportAsZip(): Promise<number> {
   console.log('=== exportAsZip START ===');
   console.log(`currentImages count: ${currentImages.length}`);
 
@@ -514,6 +521,8 @@ async function exportAsZip(): Promise<void> {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+
+  return skippedCount;
 }
 
 /**

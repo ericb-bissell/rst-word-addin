@@ -22,7 +22,7 @@ npx office-addin-dev-certs install   # Generate HTTPS certs
 
 **Important:** Update the version in `src/taskpane/taskpane.ts` whenever making changes:
 ```typescript
-const VERSION = '1.0.18';  // Increment this
+const VERSION = '1.0.19';  // Increment this
 ```
 This version displays in the debug panel and helps diagnose cache issues.
 
@@ -40,7 +40,7 @@ To deploy: simply push to `main` and the GitHub Action will build and deploy aut
 
 Microsoft Word Add-in that converts Word documents to reStructuredText (RST). Runs entirely client-side in Word Online/Desktop webview - the server only hosts static files.
 
-**Current version:** 1.0.18
+**Current version:** 1.0.19
 **Deployed:** https://ericb-bissell.github.io/rst-word-addin/
 
 ## Architecture
@@ -201,8 +201,18 @@ Body content here
 
 | Bug | Fix |
 |-----|-----|
-| Blob URL images not exported | Use Office.js `InlinePicture.getBase64ImageSrc()` API to extract images directly from Word, then merge with parsed image metadata. Blob URLs from Word's context can't be fetched from add-in iframe. |
+| Blob URL images not exported | Use OOXML extraction via `body.getOoxml()` to get all embedded images. OOXML contains images as base64 in `pkg:part` elements. |
 | Ribbon Copy button does nothing | Added fallback: tries clipboard API first, downloads as `document-rst.txt` if clipboard fails in hidden context. |
+
+## Known Limitations
+
+| Limitation | Reason |
+|------------|--------|
+| **Shapes (Insert → Shapes) cannot be exported** | Word Shapes are stored as DrawingML vector graphics, not raster images. They appear in HTML export but aren't in OOXML media folder. |
+| SmartArt graphics | Similar to Shapes - stored as DrawingML, not exportable images |
+| Charts | Stored as chart objects, not images |
+
+**Workaround for Shapes:** Convert the Shape to an image in Word first (right-click → "Save as Picture", then Insert → Pictures).
 
 ## Feature Plan
 
