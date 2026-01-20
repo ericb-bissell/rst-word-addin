@@ -6,6 +6,9 @@
 import './taskpane.css';
 import { convertToRst, ConversionResult, ExtractedImage } from '../converter';
 
+// Version for debugging cache issues
+const VERSION = '1.0.3';
+
 // UI Elements
 let refreshBtn: HTMLButtonElement;
 let copyBtn: HTMLButtonElement;
@@ -217,6 +220,7 @@ async function handleRefresh(): Promise<void> {
         rstPreview.textContent = `(No content converted)
 
 --- DEBUG INFO ---
+Version: ${VERSION}
 Elements found: ${elemCount}
 Element types: ${elemTypes}
 Warnings: ${conversionResult.warnings.join(', ') || 'none'}
