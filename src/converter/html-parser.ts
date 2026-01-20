@@ -638,6 +638,10 @@ function createFigureElement(
 ): FigureElement {
   const figureOptions: FigureOptions = { ...imageOptions };
 
+  // Always set a unique figure name based on image ID
+  const figureId = imageData?.id || `img-${imageCounter}`;
+  figureOptions.figname = figureId;
+
   if (captionElement) {
     const captionText = captionElement.textContent?.trim() || '';
     const parsed = parseCaption(captionText);
@@ -645,6 +649,7 @@ function createFigureElement(
     if (parsed) {
       figureOptions.caption = parsed.text;
       figureOptions.figureNumber = parsed.number;
+      // Use parsed number for name if available
       figureOptions.figname = `fig-${parsed.number.replace(/\./g, '-')}`;
     } else {
       figureOptions.caption = captionText;

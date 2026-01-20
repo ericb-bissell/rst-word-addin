@@ -275,47 +275,35 @@ export function findNearbyCaption(
   element: HTMLElement,
   searchParent: boolean = true
 ): HTMLElement | null {
-  // Check next sibling
+  // Check next sibling - ONLY accept if it has explicit caption styling
   const nextSibling = element.nextElementSibling as HTMLElement | null;
-  if (nextSibling) {
-    if (hasCaptionStyle(nextSibling)) {
-      return nextSibling;
-    }
-    // Check if next sibling text looks like a caption
-    const text = nextSibling.textContent?.trim() || '';
-    if (looksLikeCaption(text)) {
+  if (nextSibling && hasCaptionStyle(nextSibling)) {
+    // Also verify it's a figure caption, not a table caption
+    const captionText = nextSibling.textContent?.trim() || '';
+    if (!captionText.toLowerCase().startsWith('table')) {
       return nextSibling;
     }
   }
 
-  // Check previous sibling (captions sometimes come before)
+  // Check previous sibling - ONLY accept if it has explicit caption styling
   const prevSibling = element.previousElementSibling as HTMLElement | null;
-  if (prevSibling) {
-    if (hasCaptionStyle(prevSibling)) {
-      return prevSibling;
-    }
-    const text = prevSibling.textContent?.trim() || '';
-    if (looksLikeCaption(text)) {
+  if (prevSibling && hasCaptionStyle(prevSibling)) {
+    const captionText = prevSibling.textContent?.trim() || '';
+    if (!captionText.toLowerCase().startsWith('table')) {
       return prevSibling;
     }
   }
 
-  // Check parent for caption child
+  // Check parent for figcaption element (standard HTML5 figure)
   if (searchParent && element.parentElement) {
     const parent = element.parentElement;
 
-    // Look for figcaption
-    const figcaption = parent.querySelector('figcaption');
-    if (figcaption) {
-      return figcaption as HTMLElement;
-    }
-
-    // Look for element with caption class
-    const captionElement = parent.querySelector(
-      '.caption, .MsoCaption, [class*="caption"]'
-    );
-    if (captionElement && captionElement !== element) {
-      return captionElement as HTMLElement;
+    // Only look for figcaption in actual figure elements
+    if (parent.tagName.toLowerCase() === 'figure') {
+      const figcaption = parent.querySelector('figcaption');
+      if (figcaption) {
+        return figcaption as HTMLElement;
+      }
     }
   }
 
