@@ -370,12 +370,64 @@ function isWordListParagraph(element: HTMLElement): boolean {
 }
 
 /**
+ * Extract indent level from Word's margin-left style
+ * Word uses .5in increments: .5in = level 0, 1.0in = level 1, 1.5in = level 2, etc.
+ */
+function extractIndentLevel(element: HTMLElement): number {
+  const style = element.getAttribute('style') || '';
+  const marginMatch = style.match(/margin-left:\s*([\d.]+)(in|pt|cm)/i);
+
+  if (marginMatch) {
+    let inches = parseFloat(marginMatch[1]);
+    const unit = marginMatch[2].toLowerCase();
+
+    // Convert to inches
+    if (unit === 'pt') {
+      inches = inches / 72;
+    } else if (unit === 'cm') {
+      inches = inches / 2.54;
+    }
+
+    // .5in = level 0, 1.0in = level 1, etc.
+    return Math.max(0, Math.round((inches - 0.5) / 0.5));
+  }
+
+  return 0;
+}
+
+/**
+ * Detect if list item is ordered by examining the marker
+ */
+function detectListType(element: HTMLElement): 'ordered' | 'unordered' {
+  // Get the raw text content to check for number/letter markers
+  const fullText = element.textContent || '';
+
+  // Check for numbered list markers at the start: "1.", "2.", "a.", "b.", "i.", "ii.", etc.
+  // Word formats these as plain text before the content
+  if (/^\s*(\d+|[a-z]|[ivxlcdm]+)[.\)]\s/i.test(fullText)) {
+    return 'ordered';
+  }
+
+  // Check for bullet characters (Symbol/Wingdings fonts produce these)
+  // ·, •, ◦, o, §, ▪, etc. indicate unordered
+  if (/^[\s·•◦▪▸►§o\-\*]+/.test(fullText)) {
+    return 'unordered';
+  }
+
+  // Default to unordered
+  return 'unordered';
+}
+
+/**
  * Parse Word list item from MsoListParagraph element
  */
 function parseWordListItem(element: HTMLElement): ListElement {
+  // Extract indent level and list type
+  const indentLevel = extractIndentLevel(element);
+  const listType = detectListType(element);
+
   // Get the text content, removing the bullet/number span
   let content = '';
-  let listType: 'ordered' | 'unordered' = 'unordered';
 
   // Word puts the bullet in a span with font-family:Symbol or Wingdings
   // The actual content follows after
@@ -387,19 +439,16 @@ function parseWordListItem(element: HTMLElement): ListElement {
       const style = el.getAttribute('style') || '';
       const fontFamily = style.toLowerCase();
 
-      // Skip bullet/number spans (Symbol, Wingdings fonts or list marker spans)
-      if (fontFamily.includes('symbol') || fontFamily.includes('wingdings')) {
-        // Check if it's a number for ordered list
-        const text = el.textContent || '';
-        if (/^\d+[.\)]?\s*$/.test(text.trim())) {
-          listType = 'ordered';
-        }
+      // Skip bullet/number spans (Symbol, Wingdings, Courier New for 'o' bullets)
+      if (fontFamily.includes('symbol') ||
+          fontFamily.includes('wingdings') ||
+          fontFamily.includes('courier')) {
         continue;
       }
 
       // Check nested spans for bullet markers
       if (el.tagName === 'SPAN') {
-        const innerStyle = el.querySelector('[style*="Symbol"], [style*="Wingdings"]');
+        const innerStyle = el.querySelector('[style*="Symbol"], [style*="Wingdings"], [style*="Courier"]');
         if (innerStyle) {
           // This span contains the bullet, extract only the text after it
           const textParts: string[] = [];
@@ -409,7 +458,9 @@ function parseWordListItem(element: HTMLElement): ListElement {
             } else if (child.nodeType === Node.ELEMENT_NODE) {
               const childEl = child as HTMLElement;
               const childStyle = childEl.getAttribute('style') || '';
-              if (!childStyle.includes('Symbol') && !childStyle.includes('Wingdings')) {
+              if (!childStyle.includes('Symbol') &&
+                  !childStyle.includes('Wingdings') &&
+                  !childStyle.includes('Courier')) {
                 textParts.push(childEl.textContent || '');
               }
             }
@@ -424,18 +475,18 @@ function parseWordListItem(element: HTMLElement): ListElement {
     }
   }
 
-  // Clean up the content - remove bullet characters and extra whitespace
+  // Clean up the content - remove bullet characters, numbers, letters and extra whitespace
   content = content
-    .replace(/^[\s·•◦▪▸►\-\*]+/, '') // Remove leading bullets
-    .replace(/^\d+[.\)]\s*/, '')      // Remove leading numbers
-    .replace(/\s+/g, ' ')              // Normalize whitespace
+    .replace(/^[\s·•◦▪▸►§o\-\*]+/, '')           // Remove leading bullets
+    .replace(/^\s*(\d+|[a-z]|[ivxlcdm]+)[.\)]\s*/i, '') // Remove leading numbers/letters/roman
+    .replace(/\s+/g, ' ')                          // Normalize whitespace
     .trim();
 
-  // Return as a single-item list (will be merged in post-processing)
+  // Return as a single-item list with indent level
   return {
     type: 'list',
     listType,
-    items: [{ content }],
+    items: [{ content, indentLevel }],
     html: element.outerHTML,
   };
 }
@@ -941,6 +992,91 @@ function getFormattedContent(element: HTMLElement): string {
 }
 
 /**
+ * Helper to add an item to a list at the correct nesting level
+ *
+ * @param rootList - The root list element
+ * @param newItem - The new item to add
+ * @param targetIndent - The indent level where item should be added
+ * @param itemListType - The list type (ordered/unordered) of the new item
+ */
+function addItemToList(
+  rootList: ListElement,
+  newItem: ListItem,
+  targetIndent: number,
+  itemListType: 'ordered' | 'unordered'
+): void {
+  // Clean up the indentLevel from the item (it's now structural)
+  delete newItem.indentLevel;
+
+  // Find the correct place to add the item
+  if (targetIndent === 0) {
+    // Add to root level
+    // If list types match, add as sibling; otherwise start nested list
+    if (rootList.listType === itemListType) {
+      rootList.items.push(newItem);
+    } else {
+      // Different list type at same level - add to last item as nested
+      const lastItem = rootList.items[rootList.items.length - 1];
+      if (lastItem) {
+        if (!lastItem.nestedList) {
+          lastItem.nestedList = {
+            type: 'list',
+            listType: itemListType,
+            items: [],
+            html: '',
+          };
+        }
+        lastItem.nestedList.items.push(newItem);
+      }
+    }
+    return;
+  }
+
+  // Need to go deeper - find the last item and recurse
+  let currentList = rootList;
+  let currentIndent = 0;
+
+  while (currentIndent < targetIndent) {
+    const lastItem = currentList.items[currentList.items.length - 1];
+    if (!lastItem) {
+      // No item to nest under, add to current level
+      currentList.items.push(newItem);
+      return;
+    }
+
+    if (currentIndent + 1 === targetIndent) {
+      // This is where we need to add the item
+      if (!lastItem.nestedList) {
+        lastItem.nestedList = {
+          type: 'list',
+          listType: itemListType,
+          items: [],
+          html: '',
+        };
+      }
+      lastItem.nestedList.items.push(newItem);
+      return;
+    }
+
+    // Go deeper
+    if (!lastItem.nestedList) {
+      // Create intermediate nested list
+      lastItem.nestedList = {
+        type: 'list',
+        listType: itemListType,
+        items: [],
+        html: '',
+      };
+    }
+    currentList = lastItem.nestedList;
+    currentIndent++;
+  }
+
+  // Add at current level
+  currentList.items.push(newItem);
+}
+
+/**
  * Post-process elements to handle special cases
  */
 function postProcessElements(elements: AnyDocumentElement[]): AnyDocumentElement[] {
@@ -979,18 +1115,24 @@ function postProcessElements(elements: AnyDocumentElement[]): AnyDocumentElement
       }
     }
 
-    // Merge consecutive single-item lists of the same type
+    // Build nested list structures from flat list items with indent levels
     if (current.type === 'list') {
       const list = current as ListElement;
+      const newItem = list.items[0]; // Each parsed list has exactly one item
+      const newIndent = newItem.indentLevel ?? 0;
       const last = result[result.length - 1];
 
       if (last && last.type === 'list') {
+        // Add to existing list structure
         const lastList = last as ListElement;
-        if (lastList.listType === list.listType) {
-          // Merge items into the previous list
-          lastList.items.push(...list.items);
-          continue;
-        }
+        addItemToList(lastList, newItem, newIndent, list.listType);
+        continue;
+      } else {
+        // Start a new top-level list
+        // Clear indentLevel from item since it's now structural
+        delete newItem.indentLevel;
+        result.push(list);
+        continue;
       }
     }
 

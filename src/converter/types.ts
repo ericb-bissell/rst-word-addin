@@ -239,6 +239,8 @@ export interface ListItem {
   content: string;
   /** Nested list if any */
   nestedList?: ListElement;
+  /** Indent level (0 = top level, used during parsing) */
+  indentLevel?: number;
 }
 
 /**

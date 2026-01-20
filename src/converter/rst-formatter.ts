@@ -201,11 +201,12 @@ function formatParagraph(element: ParagraphElement, options: FormatterOptions): 
 function formatList(element: ListElement, options: FormatterOptions, depth: number = 0): string {
   const { listType, items } = element;
   const lines: string[] = [];
-  const indent = ' '.repeat(depth * options.indentSize);
+  const indent = '  '.repeat(depth); // RST uses 2-space indent for nested lists
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
-    const marker = listType === 'ordered' ? `${i + 1}.` : '-';
+    // Use #. for auto-numbered ordered lists in RST
+    const marker = listType === 'ordered' ? '#.' : '-';
 
     // First line with marker
     const firstLine = `${indent}${marker} ${item.content}`;
@@ -216,8 +217,8 @@ function formatList(element: ListElement, options: FormatterOptions, depth: numb
       const contentLines = wrappedContent.split('\n');
       lines.push(`${indent}${marker} ${contentLines[0]}`);
 
-      // Continuation lines need extra indent
-      const continuationIndent = ' '.repeat(indent.length + marker.length + 1);
+      // Continuation lines need extra indent (align with content after marker)
+      const continuationIndent = indent + ' '.repeat(marker.length + 1);
       for (let j = 1; j < contentLines.length; j++) {
         lines.push(`${continuationIndent}${contentLines[j]}`);
       }
@@ -225,9 +226,8 @@ function formatList(element: ListElement, options: FormatterOptions, depth: numb
       lines.push(firstLine);
     }
 
-    // Handle nested list
+    // Handle nested list - no blank line needed, just indent
     if (item.nestedList) {
-      lines.push(''); // Blank line before nested list
       lines.push(formatList(item.nestedList, options, depth + 1));
     }
   }
