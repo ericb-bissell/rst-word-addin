@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<OfficeAppVersionCatalog>
+  <OfficeApps>
+    <OfficeApp>
+      <Id>b2abbb1a-1e8d-465c-97e0-e5f19308fb5e</Id>
+      <Version>1.0.0.0</Version>
+      <Manifest>manifest.xml</Manifest>
+    </OfficeApp>
+  </OfficeApps>
+</OfficeAppVersionCatalog>

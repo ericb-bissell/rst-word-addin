@@ -128,6 +128,10 @@ module.exports = async (env, argv) => {
             from: 'manifest.xml',
             to: 'manifest.xml',
           },
+          {
+            from: 'catalog.xml',
+            to: 'catalog.xml',
+          },
         ],
       }),
     ],
