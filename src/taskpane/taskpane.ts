@@ -7,7 +7,7 @@ import './taskpane.css';
 import { convertToRst, ConversionResult, ExtractedImage } from '../converter';
 
 // Version for debugging cache issues
-const VERSION = '1.0.6';
+const VERSION = '1.0.7';
 
 // UI Elements
 let refreshBtn: HTMLButtonElement;

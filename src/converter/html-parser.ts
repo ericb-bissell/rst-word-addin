@@ -253,6 +253,11 @@ function parseElement(
     };
   }
 
+  // Check for Word list paragraph (MsoListParagraph variants)
+  if (isWordListParagraph(element)) {
+    return parseWordListItem(element);
+  }
+
   // Default: paragraph
   return parseParagraphElement(element);
 }
@@ -353,6 +358,85 @@ function parseParagraphElement(element: HTMLElement): ParagraphElement | null {
     content,
     html: element.outerHTML,
     style: extractWordStyle(element) || undefined,
+  };
+}
+
+/**
+ * Check if element is a Word list paragraph
+ */
+function isWordListParagraph(element: HTMLElement): boolean {
+  const className = element.className || '';
+  return /MsoListParagraph/i.test(className);
+}
+
+/**
+ * Parse Word list item from MsoListParagraph element
+ */
+function parseWordListItem(element: HTMLElement): ListElement {
+  // Get the text content, removing the bullet/number span
+  let content = '';
+  let listType: 'ordered' | 'unordered' = 'unordered';
+
+  // Word puts the bullet in a span with font-family:Symbol or Wingdings
+  // The actual content follows after
+  for (const node of Array.from(element.childNodes)) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      content += node.textContent;
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      const el = node as HTMLElement;
+      const style = el.getAttribute('style') || '';
+      const fontFamily = style.toLowerCase();
+
+      // Skip bullet/number spans (Symbol, Wingdings fonts or list marker spans)
+      if (fontFamily.includes('symbol') || fontFamily.includes('wingdings')) {
+        // Check if it's a number for ordered list
+        const text = el.textContent || '';
+        if (/^\d+[.\)]?\s*$/.test(text.trim())) {
+          listType = 'ordered';
+        }
+        continue;
+      }
+
+      // Check nested spans for bullet markers
+      if (el.tagName === 'SPAN') {
+        const innerStyle = el.querySelector('[style*="Symbol"], [style*="Wingdings"]');
+        if (innerStyle) {
+          // This span contains the bullet, extract only the text after it
+          const textParts: string[] = [];
+          for (const child of Array.from(el.childNodes)) {
+            if (child.nodeType === Node.TEXT_NODE) {
+              textParts.push(child.textContent || '');
+            } else if (child.nodeType === Node.ELEMENT_NODE) {
+              const childEl = child as HTMLElement;
+              const childStyle = childEl.getAttribute('style') || '';
+              if (!childStyle.includes('Symbol') && !childStyle.includes('Wingdings')) {
+                textParts.push(childEl.textContent || '');
+              }
+            }
+          }
+          content += textParts.join('');
+        } else {
+          content += getFormattedContent(el);
+        }
+      } else {
+        content += getFormattedContent(el);
+      }
+    }
+  }
+
+  // Clean up the content - remove bullet characters and extra whitespace
+  content = content
+    .replace(/^[\s·•◦▪▸►\-\*]+/, '') // Remove leading bullets
+    .replace(/^\d+[.\)]\s*/, '')      // Remove leading numbers
+    .replace(/\s+/g, ' ')              // Normalize whitespace
+    .trim();
+
+  // Return as a single-item list (will be merged in post-processing)
+  return {
+    type: 'list',
+    listType,
+    items: [{ content }],
+    html: element.outerHTML,
   };
 }
 
@@ -885,6 +969,21 @@ function postProcessElements(elements: AnyDocumentElement[]): AnyDocumentElement
         if (lastDirective.style === directive.style) {
           // Merge content
           lastDirective.directive.content += '\n\n' + directive.directive.content;
+          continue;
+        }
+      }
+    }
+
+    // Merge consecutive single-item lists of the same type
+    if (current.type === 'list') {
+      const list = current as ListElement;
+      const last = result[result.length - 1];
+
+      if (last && last.type === 'list') {
+        const lastList = last as ListElement;
+        if (lastList.listType === list.listType) {
+          // Merge items into the previous list
+          lastList.items.push(...list.items);
           continue;
         }
       }
