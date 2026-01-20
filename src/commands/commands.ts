@@ -21,14 +21,35 @@ async function exportToRst(event: Office.AddinCommands.Event): Promise<void> {
       const htmlResult = body.getHtml();
 
       // Get inline pictures for image extraction
+      // Note: body.inlinePictures only gets direct inline pictures, not those in tables
       const inlinePictures = body.inlinePictures;
       inlinePictures.load('items');
 
+      // Also get tables to find pictures inside them
+      const tables = body.tables;
+      tables.load('items');
+
       await context.sync();
+
+      // Collect all pictures: from body and from inside tables
+      const allPictures: Word.InlinePicture[] = [];
+
+      for (const pic of inlinePictures.items) {
+        allPictures.push(pic);
+      }
+
+      for (const table of tables.items) {
+        const tablePics = table.getRange().inlinePictures;
+        tablePics.load('items');
+        await context.sync();
+        for (const pic of tablePics.items) {
+          allPictures.push(pic);
+        }
+      }
 
       // Extract base64 data from each picture using Office.js API
       const pictureData: { base64: string; width: number; height: number }[] = [];
-      for (const picture of inlinePictures.items) {
+      for (const picture of allPictures) {
         picture.load(['width', 'height']);
         const base64Result = picture.getBase64ImageSrc();
         await context.sync();

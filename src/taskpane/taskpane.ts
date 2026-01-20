@@ -7,7 +7,7 @@ import './taskpane.css';
 import { convertToRstAsync, ConversionResult, ExtractedImage } from '../converter';
 
 // Version for debugging cache issues
-const VERSION = '1.0.15';
+const VERSION = '1.0.16';
 
 // UI Elements
 let refreshBtn: HTMLButtonElement;
@@ -198,18 +198,47 @@ async function handleRefresh(): Promise<void> {
       const htmlResult = body.getHtml();
 
       // Get inline pictures for image extraction
-      console.log('Getting inline pictures...');
+      // Note: body.inlinePictures only gets direct inline pictures, not those in tables
+      console.log('Getting inline pictures from body...');
       const inlinePictures = body.inlinePictures;
       inlinePictures.load('items');
 
+      // Also get tables to find pictures inside them
+      console.log('Getting tables...');
+      const tables = body.tables;
+      tables.load('items');
+
       await context.sync();
       console.log('Got HTML, length:', htmlResult.value?.length);
-      console.log('Found inline pictures:', inlinePictures.items.length);
+      console.log('Found body inline pictures:', inlinePictures.items.length);
+      console.log('Found tables:', tables.items.length);
+
+      // Collect all pictures: from body and from inside tables
+      const allPictures: Word.InlinePicture[] = [];
+
+      // Add body inline pictures
+      for (const pic of inlinePictures.items) {
+        allPictures.push(pic);
+      }
+
+      // Get pictures from inside tables
+      for (let t = 0; t < tables.items.length; t++) {
+        const table = tables.items[t];
+        const tablePics = table.getRange().inlinePictures;
+        tablePics.load('items');
+        await context.sync();
+        console.log(`Table ${t + 1} has ${tablePics.items.length} pictures`);
+        for (const pic of tablePics.items) {
+          allPictures.push(pic);
+        }
+      }
+
+      console.log('Total pictures found:', allPictures.length);
 
       // Extract base64 data from each picture
       const pictureData: { base64: string; width: number; height: number }[] = [];
-      for (let i = 0; i < inlinePictures.items.length; i++) {
-        const picture = inlinePictures.items[i];
+      for (let i = 0; i < allPictures.length; i++) {
+        const picture = allPictures[i];
         try {
           picture.load(['width', 'height', 'altTextDescription']);
           const base64Result = picture.getBase64ImageSrc();
