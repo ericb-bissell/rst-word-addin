@@ -163,17 +163,24 @@ function extractMetadata(doc: Document): DocumentMetadata {
  */
 function getBlockElements(container: HTMLElement): HTMLElement[] {
   const elements: HTMLElement[] = [];
-  const blockTags = ['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'DIV', 'TABLE', 'UL', 'OL', 'BLOCKQUOTE', 'FIGURE', 'NAV'];
+  // Content block tags (not wrapper divs)
+  const contentBlockTags = ['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'TABLE', 'UL', 'OL', 'BLOCKQUOTE', 'FIGURE', 'NAV'];
+  // Wrapper tags that we should recurse into
+  const wrapperTags = ['DIV', 'SPAN', 'SECTION', 'ARTICLE', 'MAIN'];
 
   for (const child of Array.from(container.children)) {
-    if (blockTags.includes(child.tagName)) {
+    const tagName = child.tagName.toUpperCase();
+
+    if (contentBlockTags.includes(tagName)) {
+      // Direct content block - add it
       elements.push(child as HTMLElement);
-    } else if (child.tagName === 'SPAN' || child.tagName === 'DIV') {
-      // Some Word content is wrapped in spans/divs
+    } else if (wrapperTags.includes(tagName)) {
+      // Wrapper element - recurse into it to find content blocks
       const nestedBlocks = getBlockElements(child as HTMLElement);
       if (nestedBlocks.length > 0) {
         elements.push(...nestedBlocks);
       } else if (child.textContent?.trim()) {
+        // Wrapper has text content but no block children - treat as paragraph
         elements.push(child as HTMLElement);
       }
     }
