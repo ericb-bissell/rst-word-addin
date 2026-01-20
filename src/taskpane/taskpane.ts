@@ -209,8 +209,12 @@ async function handleRefresh(): Promise<void> {
       currentRst = conversionResult.rst;
       currentImages = conversionResult.images;
 
-      // Update preview
-      rstPreview.textContent = currentRst || '(No content converted)';
+      // Update preview - show debug info if no content
+      if (!currentRst) {
+        rstPreview.textContent = `(No content converted)\n\n--- DEBUG: Raw HTML from Word ---\n${html}\n\n--- END HTML ---`;
+      } else {
+        rstPreview.textContent = currentRst;
+      }
       showState('preview');
 
       // Build status message
