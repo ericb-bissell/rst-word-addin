@@ -13,7 +13,7 @@ interface OoxmlImage {
 }
 
 // Version for debugging cache issues
-const VERSION = '1.0.19';
+const VERSION = '1.0.20';
 
 // UI Elements
 let refreshBtn: HTMLButtonElement;
@@ -38,6 +38,7 @@ let copyDebugBtn: HTMLButtonElement;
 let currentRst: string = '';
 let currentImages: ExtractedImage[] = [];
 let currentDebugInfo: string = '';
+let currentOoxml: string = '';
 let conversionResult: ConversionResult | null = null;
 let isLoading: boolean = false;
 
@@ -253,6 +254,9 @@ async function handleRefresh(): Promise<void> {
       // Extract images from OOXML (gets ALL images including those in text boxes/shapes)
       const ooxmlImages = extractImagesFromOoxml(ooxmlResult.value);
       console.log('Found', ooxmlImages.length, 'images in OOXML');
+
+      // Store OOXML for export
+      currentOoxml = ooxmlResult.value;
       for (let i = 0; i < ooxmlImages.length; i++) {
         const img = ooxmlImages[i];
         console.log(`  OOXML image ${i + 1}: ${img.name}, type=${img.contentType}, base64 length=${img.base64.length}`);
@@ -485,6 +489,12 @@ async function exportAsZip(): Promise<number> {
   // Add RST file
   zip.file('document.rst', currentRst);
   console.log('Added document.rst to ZIP');
+
+  // Add OOXML file for debugging/inspection
+  if (currentOoxml) {
+    zip.file('document.ooxml', currentOoxml);
+    console.log('Added document.ooxml to ZIP');
+  }
 
   // Create images folder and add images
   const imagesFolder = zip.folder('images');

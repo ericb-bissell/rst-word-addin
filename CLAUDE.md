@@ -22,7 +22,7 @@ npx office-addin-dev-certs install   # Generate HTTPS certs
 
 **Important:** Update the version in `src/taskpane/taskpane.ts` whenever making changes:
 ```typescript
-const VERSION = '1.0.19';  // Increment this
+const VERSION = '1.0.20';  // Increment this
 ```
 This version displays in the debug panel and helps diagnose cache issues.
 
@@ -40,7 +40,7 @@ To deploy: simply push to `main` and the GitHub Action will build and deploy aut
 
 Microsoft Word Add-in that converts Word documents to reStructuredText (RST). Runs entirely client-side in Word Online/Desktop webview - the server only hosts static files.
 
-**Current version:** 1.0.19
+**Current version:** 1.0.20
 **Deployed:** https://ericb-bissell.github.io/rst-word-addin/
 
 ## Architecture
