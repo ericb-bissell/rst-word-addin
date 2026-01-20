@@ -6,8 +6,14 @@
 import './taskpane.css';
 import { convertToRstAsync, ConversionResult, ExtractedImage } from '../converter';
 
+interface OoxmlImage {
+  name: string;
+  base64: string;
+  contentType: string;
+}
+
 // Version for debugging cache issues
-const VERSION = '1.0.16';
+const VERSION = '1.0.18';
 
 // UI Elements
 let refreshBtn: HTMLButtonElement;
@@ -176,6 +182,45 @@ function showError(message: string): void {
 }
 
 /**
+ * Extract images from OOXML package data
+ * OOXML contains images as pkg:part elements with pkg:binaryData
+ */
+function extractImagesFromOoxml(ooxml: string): OoxmlImage[] {
+  const images: OoxmlImage[] = [];
+
+  // Parse the OOXML string
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(ooxml, 'application/xml');
+
+  // Find all pkg:part elements (namespace-aware)
+  const parts = doc.getElementsByTagName('pkg:part');
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    const name = part.getAttribute('pkg:name') || '';
+    const contentType = part.getAttribute('pkg:contentType') || '';
+
+    // Check if this is an image part (in /word/media/ folder)
+    if (name.includes('/media/') && contentType.startsWith('image/')) {
+      // Get the binary data
+      const binaryDataElements = part.getElementsByTagName('pkg:binaryData');
+      if (binaryDataElements.length > 0) {
+        const base64 = binaryDataElements[0].textContent || '';
+        if (base64) {
+          images.push({
+            name: name,
+            base64: base64.replace(/\s/g, ''), // Remove any whitespace
+            contentType: contentType,
+          });
+        }
+      }
+    }
+  }
+
+  return images;
+}
+
+/**
  * Handle refresh button click
  */
 async function handleRefresh(): Promise<void> {
@@ -197,64 +242,21 @@ async function handleRefresh(): Promise<void> {
       console.log('Getting HTML...');
       const htmlResult = body.getHtml();
 
-      // Get inline pictures for image extraction
-      // Note: body.inlinePictures only gets direct inline pictures, not those in tables
-      console.log('Getting inline pictures from body...');
-      const inlinePictures = body.inlinePictures;
-      inlinePictures.load('items');
-
-      // Also get tables to find pictures inside them
-      console.log('Getting tables...');
-      const tables = body.tables;
-      tables.load('items');
+      // Get OOXML to extract ALL images (including those in text boxes/shapes)
+      console.log('Getting OOXML...');
+      const ooxmlResult = body.getOoxml();
 
       await context.sync();
       console.log('Got HTML, length:', htmlResult.value?.length);
-      console.log('Found body inline pictures:', inlinePictures.items.length);
-      console.log('Found tables:', tables.items.length);
+      console.log('Got OOXML, length:', ooxmlResult.value?.length);
 
-      // Collect all pictures: from body and from inside tables
-      const allPictures: Word.InlinePicture[] = [];
-
-      // Add body inline pictures
-      for (const pic of inlinePictures.items) {
-        allPictures.push(pic);
+      // Extract images from OOXML (gets ALL images including those in text boxes/shapes)
+      const ooxmlImages = extractImagesFromOoxml(ooxmlResult.value);
+      console.log('Found', ooxmlImages.length, 'images in OOXML');
+      for (let i = 0; i < ooxmlImages.length; i++) {
+        const img = ooxmlImages[i];
+        console.log(`  OOXML image ${i + 1}: ${img.name}, type=${img.contentType}, base64 length=${img.base64.length}`);
       }
-
-      // Get pictures from inside tables
-      for (let t = 0; t < tables.items.length; t++) {
-        const table = tables.items[t];
-        const tablePics = table.getRange().inlinePictures;
-        tablePics.load('items');
-        await context.sync();
-        console.log(`Table ${t + 1} has ${tablePics.items.length} pictures`);
-        for (const pic of tablePics.items) {
-          allPictures.push(pic);
-        }
-      }
-
-      console.log('Total pictures found:', allPictures.length);
-
-      // Extract base64 data from each picture
-      const pictureData: { base64: string; width: number; height: number }[] = [];
-      for (let i = 0; i < allPictures.length; i++) {
-        const picture = allPictures[i];
-        try {
-          picture.load(['width', 'height', 'altTextDescription']);
-          const base64Result = picture.getBase64ImageSrc();
-          await context.sync();
-          const base64Value = base64Result.value;
-          console.log(`Picture ${i + 1}: width=${picture.width}, height=${picture.height}, base64 length=${base64Value?.length || 0}, starts with: ${base64Value?.substring(0, 50)}`);
-          pictureData.push({
-            base64: base64Value,
-            width: picture.width,
-            height: picture.height,
-          });
-        } catch (picError) {
-          console.error(`Error extracting picture ${i + 1}:`, picError);
-        }
-      }
-      console.log('Extracted picture data for', pictureData.length, 'images');
 
       const html = htmlResult.value;
 
@@ -271,31 +273,25 @@ async function handleRefresh(): Promise<void> {
       console.log('Conversion complete, RST length:', conversionResult.rst?.length);
       console.log('RST preview:', conversionResult.rst?.substring(0, 200));
 
-      // Merge Office.js image data with parsed images
-      console.log(`Merging images: ${conversionResult.images.length} parsed, ${pictureData.length} from Office.js`);
+      // Merge OOXML image data with parsed images
+      console.log(`Merging images: ${conversionResult.images.length} parsed, ${ooxmlImages.length} from OOXML`);
       for (let i = 0; i < conversionResult.images.length; i++) {
         const img = conversionResult.images[i];
         console.log(`Parsed image ${i + 1}: filename=${img.filename}, has base64=${!!img.base64Data}, base64 length=${img.base64Data?.length || 0}`);
       }
 
-      // Match by index (order should correspond)
-      for (let i = 0; i < conversionResult.images.length && i < pictureData.length; i++) {
+      // Match by index (OOXML images appear in document order)
+      for (let i = 0; i < conversionResult.images.length && i < ooxmlImages.length; i++) {
         const img = conversionResult.images[i];
-        const data = pictureData[i];
-        console.log(`Matching image ${i + 1}: parsed has data=${!!img.base64Data}, Office.js has data=${!!data.base64}`);
+        const data = ooxmlImages[i];
+        console.log(`Matching image ${i + 1}: parsed has data=${!!img.base64Data}, OOXML has data=${!!data.base64}`);
         if (!img.base64Data && data.base64) {
-          // Extract just the base64 part (remove data URL prefix if present)
-          const base64 = data.base64.includes(',')
-            ? data.base64.split(',')[1]
-            : data.base64;
-          img.base64Data = base64;
-          img.width = data.width;
-          img.height = data.height;
-          console.log(`Filled image ${i + 1} with base64 data, length: ${base64.length}`);
+          img.base64Data = data.base64;
+          console.log(`Filled image ${i + 1} with OOXML base64 data, length: ${data.base64.length}`);
         } else if (img.base64Data) {
           console.log(`Image ${i + 1} already has base64 data, length: ${img.base64Data.length}`);
         } else {
-          console.log(`Image ${i + 1}: No Office.js data available to merge`);
+          console.log(`Image ${i + 1}: No OOXML data available to merge`);
         }
       }
 
@@ -320,6 +316,11 @@ async function handleRefresh(): Promise<void> {
         `  ${i + 1}. ${img.filename}: base64=${img.base64Data?.length || 0} bytes, format=${img.format}`
       ).join('\n') || '  (none)';
 
+      // Build OOXML image debug
+      const ooxmlImageDebug = ooxmlImages.map((img, i) =>
+        `  ${i + 1}. ${img.name}: ${img.contentType}, ${img.base64.length} bytes`
+      ).join('\n') || '  (none)';
+
       currentDebugInfo = `Version: ${VERSION}
 Elements found: ${elemCount}
 Element types: ${elemTypes}
@@ -327,7 +328,10 @@ Warnings: ${warnings}
 
 --- IMAGE STATUS ---
 Parsed images: ${conversionResult.images.length}
-Office.js pictures: ${pictureData.length}
+OOXML images: ${ooxmlImages.length}
+${ooxmlImageDebug}
+
+Final export images:
 ${imageDebug}
 
 --- ELEMENT DETAILS ---

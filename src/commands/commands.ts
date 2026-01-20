@@ -5,6 +5,47 @@
 
 import { convertToRstAsync, ExtractedImage } from '../converter';
 
+interface OoxmlImage {
+  name: string;
+  base64: string;
+  contentType: string;
+}
+
+/**
+ * Extract images from OOXML package data
+ * OOXML contains images as pkg:part elements with pkg:binaryData
+ */
+function extractImagesFromOoxml(ooxml: string): OoxmlImage[] {
+  const images: OoxmlImage[] = [];
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(ooxml, 'application/xml');
+
+  const parts = doc.getElementsByTagName('pkg:part');
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    const name = part.getAttribute('pkg:name') || '';
+    const contentType = part.getAttribute('pkg:contentType') || '';
+
+    if (name.includes('/media/') && contentType.startsWith('image/')) {
+      const binaryDataElements = part.getElementsByTagName('pkg:binaryData');
+      if (binaryDataElements.length > 0) {
+        const base64 = binaryDataElements[0].textContent || '';
+        if (base64) {
+          images.push({
+            name: name,
+            base64: base64.replace(/\s/g, ''),
+            contentType: contentType,
+          });
+        }
+      }
+    }
+  }
+
+  return images;
+}
+
 // Initialize Office
 Office.onReady(() => {
   // Office is ready
@@ -20,62 +61,25 @@ async function exportToRst(event: Office.AddinCommands.Event): Promise<void> {
       const body = context.document.body;
       const htmlResult = body.getHtml();
 
-      // Get inline pictures for image extraction
-      // Note: body.inlinePictures only gets direct inline pictures, not those in tables
-      const inlinePictures = body.inlinePictures;
-      inlinePictures.load('items');
-
-      // Also get tables to find pictures inside them
-      const tables = body.tables;
-      tables.load('items');
+      // Get OOXML to extract ALL images (including those in text boxes/shapes)
+      const ooxmlResult = body.getOoxml();
 
       await context.sync();
 
-      // Collect all pictures: from body and from inside tables
-      const allPictures: Word.InlinePicture[] = [];
-
-      for (const pic of inlinePictures.items) {
-        allPictures.push(pic);
-      }
-
-      for (const table of tables.items) {
-        const tablePics = table.getRange().inlinePictures;
-        tablePics.load('items');
-        await context.sync();
-        for (const pic of tablePics.items) {
-          allPictures.push(pic);
-        }
-      }
-
-      // Extract base64 data from each picture using Office.js API
-      const pictureData: { base64: string; width: number; height: number }[] = [];
-      for (const picture of allPictures) {
-        picture.load(['width', 'height']);
-        const base64Result = picture.getBase64ImageSrc();
-        await context.sync();
-        pictureData.push({
-          base64: base64Result.value,
-          width: picture.width,
-          height: picture.height,
-        });
-      }
+      // Extract images from OOXML
+      const ooxmlImages = extractImagesFromOoxml(ooxmlResult.value);
 
       const html = htmlResult.value;
       const result = await convertToRstAsync(html, {
         imageDirectory: 'images/',
       });
 
-      // Merge Office.js image data with parsed images
-      for (let i = 0; i < result.images.length && i < pictureData.length; i++) {
+      // Merge OOXML image data with parsed images
+      for (let i = 0; i < result.images.length && i < ooxmlImages.length; i++) {
         const img = result.images[i];
-        const data = pictureData[i];
+        const data = ooxmlImages[i];
         if (!img.base64Data && data.base64) {
-          const base64 = data.base64.includes(',')
-            ? data.base64.split(',')[1]
-            : data.base64;
-          img.base64Data = base64;
-          img.width = data.width;
-          img.height = data.height;
+          img.base64Data = data.base64;
         }
       }
 
