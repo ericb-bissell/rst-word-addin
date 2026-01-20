@@ -211,7 +211,23 @@ async function handleRefresh(): Promise<void> {
 
       // Update preview - show debug info if no content
       if (!currentRst) {
-        rstPreview.textContent = `(No content converted)\n\n--- DEBUG: Raw HTML from Word ---\n${html}\n\n--- END HTML ---`;
+        const elemCount = conversionResult.elements?.length ?? 0;
+        const elemTypes = conversionResult.elements?.map(e => e.type).join(', ') || 'none';
+        const elemDetails = conversionResult.elements?.map(e => JSON.stringify(e, null, 2)).join('\n\n') || 'none';
+        rstPreview.textContent = `(No content converted)
+
+--- DEBUG INFO ---
+Elements found: ${elemCount}
+Element types: ${elemTypes}
+Warnings: ${conversionResult.warnings.join(', ') || 'none'}
+
+--- ELEMENT DETAILS ---
+${elemDetails}
+
+--- Raw HTML from Word ---
+${html}
+
+--- END HTML ---`;
       } else {
         rstPreview.textContent = currentRst;
       }
