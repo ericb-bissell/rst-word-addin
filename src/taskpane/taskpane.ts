@@ -13,7 +13,7 @@ interface OoxmlImage {
 }
 
 // Version for debugging cache issues
-const VERSION = '1.0.21';
+const VERSION = '1.0.22';
 
 // UI Elements
 let refreshBtn: HTMLButtonElement;
@@ -38,7 +38,7 @@ let copyDebugBtn: HTMLButtonElement;
 let currentRst: string = '';
 let currentImages: ExtractedImage[] = [];
 let currentDebugInfo: string = '';
-let currentOoxml: string = '';
+let currentDrawings: string[] = [];
 let conversionResult: ConversionResult | null = null;
 let isLoading: boolean = false;
 
@@ -183,6 +183,46 @@ function showError(message: string): void {
 }
 
 /**
+ * Extract DrawingML elements from OOXML in document order
+ * Returns array of drawing XML strings for each graphic in the document
+ */
+function extractDrawingsFromOoxml(ooxml: string): string[] {
+  const drawings: string[] = [];
+
+  // Parse the OOXML
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(ooxml, 'application/xml');
+
+  // Find the document.xml part which contains the drawings
+  const parts = doc.getElementsByTagName('pkg:part');
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    const name = part.getAttribute('pkg:name') || '';
+
+    if (name === '/word/document.xml') {
+      // Get the xmlData content
+      const xmlDataElements = part.getElementsByTagName('pkg:xmlData');
+      if (xmlDataElements.length > 0) {
+        const xmlData = xmlDataElements[0];
+
+        // Find all w:drawing elements (drawings/images)
+        const drawingElements = xmlData.getElementsByTagName('w:drawing');
+        for (let j = 0; j < drawingElements.length; j++) {
+          const drawing = drawingElements[j];
+          // Serialize the drawing element to string
+          const serializer = new XMLSerializer();
+          const drawingXml = serializer.serializeToString(drawing);
+          drawings.push(drawingXml);
+        }
+      }
+      break;
+    }
+  }
+
+  return drawings;
+}
+
+/**
  * Extract images from OOXML package data
  * OOXML contains images as pkg:part elements with pkg:binaryData
  */
@@ -255,8 +295,9 @@ async function handleRefresh(): Promise<void> {
       const ooxmlImages = extractImagesFromOoxml(ooxmlResult.value);
       console.log('Found', ooxmlImages.length, 'images in OOXML');
 
-      // Store OOXML for export
-      currentOoxml = ooxmlResult.value;
+      // Extract drawings from OOXML for export (just the DrawingML, not full document)
+      currentDrawings = extractDrawingsFromOoxml(ooxmlResult.value);
+      console.log('Found', currentDrawings.length, 'drawings in OOXML');
       for (let i = 0; i < ooxmlImages.length; i++) {
         const img = ooxmlImages[i];
         console.log(`  OOXML image ${i + 1}: ${img.name}, type=${img.contentType}, base64 length=${img.base64.length}`);
@@ -506,13 +547,19 @@ async function exportAsZip(): Promise<number> {
         imagesFolder.file(filename, image.base64Data, { base64: true });
         addedCount++;
       } else {
-        // Image couldn't be exported - save OOXML for debugging
+        // Image couldn't be exported - save DrawingML for debugging
         const filename = image.filename.replace('images/', '');
         const ooxmlFilename = filename.replace(/\.[^.]+$/, '.ooxml');
         console.log(`  SKIPPED: No base64Data for ${image.filename}, saving ${ooxmlFilename}`);
-        if (currentOoxml) {
-          imagesFolder.file(ooxmlFilename, currentOoxml);
-          console.log(`  Added ${ooxmlFilename} to ZIP for debugging`);
+
+        // Get the corresponding DrawingML by index
+        if (currentDrawings[i]) {
+          // Format the XML nicely
+          const drawingXml = '<?xml version="1.0" encoding="UTF-8"?>\n' + currentDrawings[i];
+          imagesFolder.file(ooxmlFilename, drawingXml);
+          console.log(`  Added ${ooxmlFilename} to ZIP (DrawingML for image ${i + 1})`);
+        } else {
+          console.log(`  No DrawingML found for image index ${i}`);
         }
         skippedCount++;
       }
