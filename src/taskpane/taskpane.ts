@@ -7,7 +7,7 @@ import './taskpane.css';
 import { convertToRst, ConversionResult, ExtractedImage } from '../converter';
 
 // Version for debugging cache issues
-const VERSION = '1.0.5';
+const VERSION = '1.0.6';
 
 // UI Elements
 let refreshBtn: HTMLButtonElement;
@@ -224,6 +224,10 @@ Version: ${VERSION}
 Elements found: ${elemCount}
 Element types: ${elemTypes}
 Warnings: ${warnings}
+
+--- Raw HTML from Word ---
+${html}
+
 --- END DEBUG ---`;
 
       if (!currentRst) {
@@ -232,12 +236,7 @@ Warnings: ${warnings}
 ${debugInfo}
 
 --- ELEMENT DETAILS ---
-${elemDetails}
-
---- Raw HTML from Word ---
-${html}
-
---- END HTML ---`;
+${elemDetails}`;
       } else {
         rstPreview.textContent = currentRst + debugInfo;
       }
