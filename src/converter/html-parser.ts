@@ -218,6 +218,16 @@ function parseElement(
 
   // Check for table
   if (tagName === 'TABLE') {
+    // Check if this is a layout table (used for positioning images) vs content table
+    if (isLayoutTable(element as HTMLTableElement)) {
+      // Extract images from layout table
+      const layoutImages = extractImagesFromLayoutTable(element as HTMLTableElement, images);
+      if (layoutImages.length > 0) {
+        return layoutImages;
+      }
+      // No images found, skip this layout table
+      return null;
+    }
     return parseTableElement(element);
   }
 
@@ -231,10 +241,43 @@ function parseElement(
     return parseFigureElement(element, images);
   }
 
-  // Check for image (standalone or with nearby caption)
-  const img = element.querySelector('img') || (tagName === 'IMG' ? element as unknown as HTMLImageElement : null);
+  // Check for images (standalone or with nearby caption)
+  // First check if there's a layout table inside with images
+  const nestedLayoutTable = element.querySelector('table') as HTMLTableElement | null;
+  if (nestedLayoutTable && isLayoutTable(nestedLayoutTable)) {
+    const layoutImages = extractImagesFromLayoutTable(nestedLayoutTable, images);
+    if (layoutImages.length > 0) {
+      return layoutImages;
+    }
+  }
+
+  // Check for images directly in the element
+  const allImgs = element.querySelectorAll('img');
+  if (allImgs.length > 1) {
+    // Multiple images - return as array
+    const imageElements: AnyDocumentElement[] = [];
+    for (const imgEl of Array.from(allImgs)) {
+      const imgHtml = imgEl as HTMLImageElement;
+      const imageData = extractImageData(imgHtml);
+      if (imageData) {
+        images.push(imageData);
+      }
+      const imageOptions = parseImageOptionsFromElement(imgHtml, imageData);
+      imageElements.push({
+        type: 'image',
+        options: imageOptions,
+        imageData,
+        html: imgHtml.outerHTML,
+      });
+    }
+    return imageElements;
+  } else if (allImgs.length === 1) {
+    return parseImageOrFigure(element, allImgs[0] as HTMLImageElement, images);
+  }
+
+  const img = tagName === 'IMG' ? element as unknown as HTMLImageElement : null;
   if (img) {
-    return parseImageOrFigure(element, img as HTMLImageElement, images);
+    return parseImageOrFigure(element, img, images);
   }
 
   // Check for blockquote
@@ -555,6 +598,62 @@ function parseListItem(li: HTMLElement): ListItem {
   }
 
   return item;
+}
+
+/**
+ * Check if a table is a layout table (used for positioning images) vs content table
+ * Word uses layout tables with cellpadding=0 and cellspacing=0 to position images
+ * Content tables have the MsoTableGrid class
+ */
+function isLayoutTable(table: HTMLTableElement): boolean {
+  const className = table.className || '';
+
+  // Content tables have MsoTableGrid class
+  if (className.includes('MsoTableGrid')) {
+    return false;
+  }
+
+  // Check for layout table indicators
+  const cellPadding = table.getAttribute('cellpadding');
+  const cellSpacing = table.getAttribute('cellspacing');
+  const hasImages = table.querySelectorAll('img').length > 0;
+
+  // Layout tables typically have cellpadding=0 and cellspacing=0 and contain images
+  const isLayoutStyle = cellPadding === '0' || cellSpacing === '0';
+
+  return hasImages && isLayoutStyle;
+}
+
+/**
+ * Extract all images from a layout table
+ * Layout tables are used by Word to position multiple images
+ */
+function extractImagesFromLayoutTable(
+  table: HTMLTableElement,
+  images: ExtractedImage[]
+): ImageElement[] {
+  const result: ImageElement[] = [];
+  const imgElements = table.querySelectorAll('img');
+
+  for (const imgEl of Array.from(imgElements)) {
+    const img = imgEl as HTMLImageElement;
+    const imageData = extractImageData(img);
+
+    if (imageData) {
+      images.push(imageData);
+    }
+
+    const imageOptions = parseImageOptionsFromElement(img, imageData);
+
+    result.push({
+      type: 'image',
+      options: imageOptions,
+      imageData,
+      html: img.outerHTML,
+    });
+  }
+
+  return result;
 }
 
 /**
