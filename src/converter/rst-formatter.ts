@@ -201,7 +201,9 @@ function formatParagraph(element: ParagraphElement, options: FormatterOptions): 
 function formatList(element: ListElement, options: FormatterOptions, depth: number = 0): string {
   const { listType, items } = element;
   const lines: string[] = [];
-  const indent = '  '.repeat(depth); // RST uses 2-space indent for nested lists
+  // RST requires 3-space indent for nested lists to align with parent content
+  // (marker like "#." or "-" is 1-2 chars + 1 space = content starts at col 3)
+  const indent = '   '.repeat(depth);
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
