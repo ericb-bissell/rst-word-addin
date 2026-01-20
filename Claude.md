@@ -1,5 +1,65 @@
 # RST Word Add-in - Project Instructions
 
+## Current Status (v1.0.13)
+
+**Deployed:** GitHub Pages at `https://ericb-bissell.github.io/rst-word-addin/`
+**Repo:** `ericb-bissell/rst-word-addin`
+
+### Working Features
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Headers (H1-H4) | ✅ Working | Proper RST underlines (=, -, ~, ^) with H1 overline |
+| Bold/Italic | ✅ Working | `**bold**`, `*italic*`, `***both***` |
+| Bullet Lists | ✅ Working | Nested to 3+ levels with 3-space indent |
+| Numbered Lists | ✅ Working | Auto-numbering with `#.`, nested support |
+| Tables | ✅ Working | Grid format with proper cell alignment |
+| Table Captions | ✅ Working | `.. table::` directive with `:name:` |
+| Images | ✅ Working | Extracts from layout tables, `.. image::` directive |
+| Image Attributes | ✅ Working | alt, width, height preserved |
+| Copy to Clipboard | ✅ Working | Clean RST only, preserves indentation |
+| Export as ZIP | ✅ Working | RST file + images folder |
+| Debug Panel | ✅ Working | Collapsible, separate copy button |
+
+### Recent Version History
+
+| Version | Changes |
+|---------|---------|
+| 1.0.13 | Collapsible debug panel, copy preserves indentation |
+| 1.0.12 | Layout table image detection (cellpadding=0 tables) |
+| 1.0.11 | Fixed RST list indentation (3-space for nested) |
+| 1.0.10 | Nested list support with indent level detection |
+| 1.0.9 | Table caption association fix |
+
+### Key Implementation Files
+
+| File | Purpose |
+|------|---------|
+| `src/converter/html-parser.ts` | HTML parsing, layout table detection, list parsing |
+| `src/converter/rst-formatter.ts` | RST output formatting, list indentation |
+| `src/converter/types.ts` | TypeScript interfaces including ListItem with indentLevel |
+| `src/taskpane/taskpane.ts` | UI logic, debug panel, copy functions |
+| `src/taskpane/taskpane.html` | Collapsible debug panel markup |
+| `src/taskpane/taskpane.css` | Debug panel styles |
+
+### Known Patterns
+
+**Layout Tables vs Content Tables:**
+- Content tables have `class="MsoTableGrid"`
+- Layout tables have `cellpadding="0"` and contain images
+- `isLayoutTable()` function distinguishes them
+
+**Word List Parsing:**
+- `MsoListParagraph` class indicates list items
+- `margin-left` style indicates nesting level (0.5in increments)
+- List type detected from bullet character (•, o, § vs 1, a, i)
+
+**RST List Indentation:**
+- Uses 3-space indent for nested lists (RST requirement for enumerated)
+- Auto-numbering uses `#.` marker
+
+---
+
 ## Project Overview
 
 This is a Microsoft Office 365 Add-in for Word that enables users to preview and export Word documents as reStructuredText (RST) format. The add-in provides:
