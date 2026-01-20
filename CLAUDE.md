@@ -22,7 +22,7 @@ npx office-addin-dev-certs install   # Generate HTTPS certs
 
 **Important:** Update the version in `src/taskpane/taskpane.ts` whenever making changes:
 ```typescript
-const VERSION = '1.0.15';  // Increment this
+const VERSION = '1.0.16';  // Increment this
 ```
 This version displays in the debug panel and helps diagnose cache issues.
 
@@ -30,7 +30,7 @@ This version displays in the debug panel and helps diagnose cache issues.
 
 Microsoft Word Add-in that converts Word documents to reStructuredText (RST). Runs entirely client-side in Word Online/Desktop webview - the server only hosts static files.
 
-**Current version:** 1.0.15
+**Current version:** 1.0.16
 **Deployed:** https://ericb-bissell.github.io/rst-word-addin/
 
 ## Architecture
@@ -82,21 +82,39 @@ await Word.run(async (context) => {
 
 ### Key Pattern: Image Extraction
 
-Images must be extracted using Office.js API, not from HTML blob URLs:
+Images must be extracted using Office.js API, not from HTML blob URLs.
+**Important:** `body.inlinePictures` only returns direct inline pictures - images inside tables need separate extraction:
 
 ```typescript
+// Get body pictures
 const inlinePictures = body.inlinePictures;
 inlinePictures.load('items');
+
+// Get tables (images inside layout tables won't be in body.inlinePictures)
+const tables = body.tables;
+tables.load('items');
 await context.sync();
 
-for (const picture of inlinePictures.items) {
+// Collect from body
+const allPictures: Word.InlinePicture[] = [...inlinePictures.items];
+
+// Collect from tables
+for (const table of tables.items) {
+  const tablePics = table.getRange().inlinePictures;
+  tablePics.load('items');
+  await context.sync();
+  allPictures.push(...tablePics.items);
+}
+
+// Extract base64 from each
+for (const picture of allPictures) {
   const base64Result = picture.getBase64ImageSrc();
   await context.sync();
   // base64Result.value contains the image data
 }
 ```
 
-Blob URLs in Word's HTML (`blob:https://...`) are not accessible from the add-in's iframe context.
+Blob URLs in Word's HTML (`blob:https://...` or `~WRS{...}`) are not accessible from the add-in's iframe context.
 
 ## Critical Implementation Details
 
