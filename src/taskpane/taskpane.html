@@ -73,6 +73,21 @@
       <!-- Preview Content -->
       <div id="preview-container" class="preview-container" style="display: none;">
         <pre id="rst-preview" class="rst-preview"></pre>
+
+        <!-- Collapsible Debug Panel -->
+        <details id="debug-panel" class="debug-panel">
+          <summary class="debug-summary">
+            <span class="debug-title">Debug Info</span>
+            <button id="copy-debug-btn" class="debug-copy-btn" title="Copy debug info">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H6z"/>
+                <path d="M2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h1v1a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1v1H2z"/>
+              </svg>
+              Copy
+            </button>
+          </summary>
+          <pre id="debug-content" class="debug-content"></pre>
+        </details>
       </div>
     </main>
 

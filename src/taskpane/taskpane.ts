@@ -7,7 +7,7 @@ import './taskpane.css';
 import { convertToRst, ConversionResult, ExtractedImage } from '../converter';
 
 // Version for debugging cache issues
-const VERSION = '1.0.12';
+const VERSION = '1.0.13';
 
 // UI Elements
 let refreshBtn: HTMLButtonElement;
@@ -25,10 +25,13 @@ let statusText: HTMLElement;
 let helpPanel: HTMLElement;
 let toast: HTMLElement;
 let toastMessage: HTMLElement;
+let debugContent: HTMLPreElement;
+let copyDebugBtn: HTMLButtonElement;
 
 // State
 let currentRst: string = '';
 let currentImages: ExtractedImage[] = [];
+let currentDebugInfo: string = '';
 let conversionResult: ConversionResult | null = null;
 let isLoading: boolean = false;
 
@@ -77,6 +80,8 @@ function initializeUI(): void {
   helpPanel = document.getElementById('help-panel') as HTMLElement;
   toast = document.getElementById('toast') as HTMLElement;
   toastMessage = document.getElementById('toast-message') as HTMLElement;
+  debugContent = document.getElementById('debug-content') as HTMLPreElement;
+  copyDebugBtn = document.getElementById('copy-debug-btn') as HTMLButtonElement;
 }
 
 /**
@@ -88,6 +93,7 @@ function bindEvents(): void {
   exportBtn?.addEventListener('click', handleExport);
   helpBtn?.addEventListener('click', toggleHelp);
   retryBtn?.addEventListener('click', handleRefresh);
+  copyDebugBtn?.addEventListener('click', handleCopyDebug);
 
   // Listen for messages from help iframe
   window.addEventListener('message', (event) => {
@@ -212,34 +218,35 @@ async function handleRefresh(): Promise<void> {
       currentRst = conversionResult.rst;
       currentImages = conversionResult.images;
 
-      // Update preview - always show debug info at the end
+      // Build debug info separately
       const elemCount = conversionResult.elements?.length ?? 0;
       const elemTypes = conversionResult.elements?.map(e => e.type).join(', ') || 'none';
       const warnings = conversionResult.warnings.join(', ') || 'none';
+      const elemDetails = conversionResult.elements?.map(e => JSON.stringify(e, null, 2)).join('\n\n') || 'none';
 
-      const debugInfo = `
-
---- DEBUG INFO ---
-Version: ${VERSION}
+      currentDebugInfo = `Version: ${VERSION}
 Elements found: ${elemCount}
 Element types: ${elemTypes}
 Warnings: ${warnings}
 
---- Raw HTML from Word ---
-${html}
-
---- END DEBUG ---`;
-
-      if (!currentRst) {
-        const elemDetails = conversionResult.elements?.map(e => JSON.stringify(e, null, 2)).join('\n\n') || 'none';
-        rstPreview.textContent = `(No content converted)
-${debugInfo}
-
 --- ELEMENT DETAILS ---
-${elemDetails}`;
+${elemDetails}
+
+--- Raw HTML from Word ---
+${html}`;
+
+      // Update RST preview (clean, without debug info)
+      if (!currentRst) {
+        rstPreview.textContent = '(No content converted)';
       } else {
-        rstPreview.textContent = currentRst + debugInfo;
+        rstPreview.textContent = currentRst;
       }
+
+      // Update debug panel
+      if (debugContent) {
+        debugContent.textContent = currentDebugInfo;
+      }
+
       showState('preview');
 
       // Build status message
@@ -284,6 +291,26 @@ async function handleCopy(): Promise<void> {
   } catch (error) {
     console.error('Error copying to clipboard:', error);
     showToast('Failed to copy to clipboard', 'error');
+  }
+}
+
+/**
+ * Handle copy debug info button click
+ */
+async function handleCopyDebug(event: Event): Promise<void> {
+  event.stopPropagation(); // Prevent toggle of details element
+
+  if (!currentDebugInfo) {
+    showToast('No debug info to copy', 'error');
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(currentDebugInfo);
+    showToast('Debug info copied to clipboard', 'success');
+  } catch (error) {
+    console.error('Error copying debug info:', error);
+    showToast('Failed to copy debug info', 'error');
   }
 }
 
