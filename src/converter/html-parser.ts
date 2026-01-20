@@ -914,9 +914,10 @@ function extractImageData(img: HTMLImageElement): ExtractedImage | undefined {
     return {
       id: `img-${imageCounter}`,
       filename,
-      base64Data: '', // Will need to be fetched
+      base64Data: '', // Will be fetched async for blob URLs
       format: extension,
       altText: img.getAttribute('alt') || undefined,
+      srcUrl: src, // Store for async fetching
     };
   }
 

@@ -4,10 +4,10 @@
  */
 
 import './taskpane.css';
-import { convertToRst, ConversionResult, ExtractedImage } from '../converter';
+import { convertToRstAsync, ConversionResult, ExtractedImage } from '../converter';
 
 // Version for debugging cache issues
-const VERSION = '1.0.13';
+const VERSION = '1.0.15';
 
 // UI Elements
 let refreshBtn: HTMLButtonElement;
@@ -197,8 +197,35 @@ async function handleRefresh(): Promise<void> {
       console.log('Getting HTML...');
       const htmlResult = body.getHtml();
 
+      // Get inline pictures for image extraction
+      console.log('Getting inline pictures...');
+      const inlinePictures = body.inlinePictures;
+      inlinePictures.load('items');
+
       await context.sync();
       console.log('Got HTML, length:', htmlResult.value?.length);
+      console.log('Found inline pictures:', inlinePictures.items.length);
+
+      // Extract base64 data from each picture
+      const pictureData: { base64: string; width: number; height: number }[] = [];
+      for (let i = 0; i < inlinePictures.items.length; i++) {
+        const picture = inlinePictures.items[i];
+        try {
+          picture.load(['width', 'height', 'altTextDescription']);
+          const base64Result = picture.getBase64ImageSrc();
+          await context.sync();
+          const base64Value = base64Result.value;
+          console.log(`Picture ${i + 1}: width=${picture.width}, height=${picture.height}, base64 length=${base64Value?.length || 0}, starts with: ${base64Value?.substring(0, 50)}`);
+          pictureData.push({
+            base64: base64Value,
+            width: picture.width,
+            height: picture.height,
+          });
+        } catch (picError) {
+          console.error(`Error extracting picture ${i + 1}:`, picError);
+        }
+      }
+      console.log('Extracted picture data for', pictureData.length, 'images');
 
       const html = htmlResult.value;
 
@@ -206,7 +233,7 @@ async function handleRefresh(): Promise<void> {
       console.log('Converting HTML to RST...');
       console.log('HTML preview:', html?.substring(0, 500));
 
-      conversionResult = convertToRst(html, {
+      conversionResult = await convertToRstAsync(html, {
         includeMetadata: false,
         addGeneratedComment: false,
         imageDirectory: 'images/',
@@ -214,6 +241,41 @@ async function handleRefresh(): Promise<void> {
 
       console.log('Conversion complete, RST length:', conversionResult.rst?.length);
       console.log('RST preview:', conversionResult.rst?.substring(0, 200));
+
+      // Merge Office.js image data with parsed images
+      console.log(`Merging images: ${conversionResult.images.length} parsed, ${pictureData.length} from Office.js`);
+      for (let i = 0; i < conversionResult.images.length; i++) {
+        const img = conversionResult.images[i];
+        console.log(`Parsed image ${i + 1}: filename=${img.filename}, has base64=${!!img.base64Data}, base64 length=${img.base64Data?.length || 0}`);
+      }
+
+      // Match by index (order should correspond)
+      for (let i = 0; i < conversionResult.images.length && i < pictureData.length; i++) {
+        const img = conversionResult.images[i];
+        const data = pictureData[i];
+        console.log(`Matching image ${i + 1}: parsed has data=${!!img.base64Data}, Office.js has data=${!!data.base64}`);
+        if (!img.base64Data && data.base64) {
+          // Extract just the base64 part (remove data URL prefix if present)
+          const base64 = data.base64.includes(',')
+            ? data.base64.split(',')[1]
+            : data.base64;
+          img.base64Data = base64;
+          img.width = data.width;
+          img.height = data.height;
+          console.log(`Filled image ${i + 1} with base64 data, length: ${base64.length}`);
+        } else if (img.base64Data) {
+          console.log(`Image ${i + 1} already has base64 data, length: ${img.base64Data.length}`);
+        } else {
+          console.log(`Image ${i + 1}: No Office.js data available to merge`);
+        }
+      }
+
+      // Final check
+      console.log('Final image status:');
+      for (let i = 0; i < conversionResult.images.length; i++) {
+        const img = conversionResult.images[i];
+        console.log(`  Image ${i + 1}: ${img.filename}, base64 length=${img.base64Data?.length || 0}`);
+      }
 
       currentRst = conversionResult.rst;
       currentImages = conversionResult.images;
@@ -224,10 +286,20 @@ async function handleRefresh(): Promise<void> {
       const warnings = conversionResult.warnings.join(', ') || 'none';
       const elemDetails = conversionResult.elements?.map(e => JSON.stringify(e, null, 2)).join('\n\n') || 'none';
 
+      // Build image debug info
+      const imageDebug = conversionResult.images.map((img, i) =>
+        `  ${i + 1}. ${img.filename}: base64=${img.base64Data?.length || 0} bytes, format=${img.format}`
+      ).join('\n') || '  (none)';
+
       currentDebugInfo = `Version: ${VERSION}
 Elements found: ${elemCount}
 Element types: ${elemTypes}
 Warnings: ${warnings}
+
+--- IMAGE STATUS ---
+Parsed images: ${conversionResult.images.length}
+Office.js pictures: ${pictureData.length}
+${imageDebug}
 
 --- ELEMENT DETAILS ---
 ${elemDetails}
@@ -362,6 +434,9 @@ function downloadRstFile(): void {
  * Export as ZIP file with RST and images
  */
 async function exportAsZip(): Promise<void> {
+  console.log('=== exportAsZip START ===');
+  console.log(`currentImages count: ${currentImages.length}`);
+
   // Dynamically import JSZip
   const JSZip = (await import('jszip')).default;
 
@@ -369,18 +444,32 @@ async function exportAsZip(): Promise<void> {
 
   // Add RST file
   zip.file('document.rst', currentRst);
+  console.log('Added document.rst to ZIP');
 
   // Create images folder and add images
   const imagesFolder = zip.folder('images');
+  let addedCount = 0;
+  let skippedCount = 0;
+
   if (imagesFolder) {
-    for (const image of currentImages) {
-      if (image.base64Data) {
+    for (let i = 0; i < currentImages.length; i++) {
+      const image = currentImages[i];
+      console.log(`Export image ${i + 1}: filename=${image.filename}, base64Data length=${image.base64Data?.length || 0}`);
+      if (image.base64Data && image.base64Data.length > 0) {
         // Extract just the filename from the path
         const filename = image.filename.replace('images/', '');
+        console.log(`  Adding to ZIP: ${filename}, data length: ${image.base64Data.length}`);
         imagesFolder.file(filename, image.base64Data, { base64: true });
+        addedCount++;
+      } else {
+        console.log(`  SKIPPED: No base64Data for ${image.filename}`);
+        skippedCount++;
       }
     }
   }
+
+  console.log(`ZIP summary: ${addedCount} images added, ${skippedCount} skipped`);
+  console.log('=== exportAsZip END ===');
 
   // Generate ZIP and download
   const content = await zip.generateAsync({ type: 'blob' });

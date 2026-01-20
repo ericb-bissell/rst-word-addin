@@ -171,6 +171,8 @@ export interface ExtractedImage {
   height?: number;
   /** Alt text from Word */
   altText?: string;
+  /** Original src URL (for blob URL fetching) */
+  srcUrl?: string;
 }
 
 /**

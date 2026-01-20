@@ -132,7 +132,8 @@ export function convertToRst(
 /**
  * Convert Word HTML to RST with async image handling
  *
- * This version handles image extraction that may require async operations.
+ * This version handles image extraction that may require async operations,
+ * including fetching blob URLs and converting them to base64.
  *
  * @param html - HTML content from Word
  * @param options - Conversion options
@@ -142,9 +143,144 @@ export async function convertToRstAsync(
   html: string,
   options: ConversionOptions = {}
 ): Promise<ConversionResult> {
-  // For now, just call the sync version
-  // Future enhancement: handle blob URL fetching, etc.
-  return convertToRst(html, options);
+  // First, do the sync conversion
+  const result = convertToRst(html, options);
+
+  // Then resolve any blob URLs in images
+  await resolveBlobUrls(result.images, result.warnings);
+
+  return result;
+}
+
+/**
+ * Fetch blob URLs and convert to base64
+ *
+ * Word Online often provides images as blob: URLs which need to be
+ * fetched and converted to base64 for export.
+ */
+async function resolveBlobUrls(
+  images: ExtractedImage[],
+  warnings: string[]
+): Promise<void> {
+  const blobImages = images.filter(
+    (img) => !img.base64Data && img.filename
+  );
+
+  if (blobImages.length === 0) {
+    return;
+  }
+
+  // Process images in parallel
+  await Promise.all(
+    blobImages.map(async (image) => {
+      try {
+        // Try to get the original src from the image element
+        // The src should be stored or we need to find another way
+        // For now, we'll try using the canvas approach with the img element
+        const base64 = await fetchImageAsBase64(image);
+        if (base64) {
+          image.base64Data = base64;
+        } else {
+          warnings.push(`Could not fetch image: ${image.filename}`);
+        }
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        warnings.push(`Error fetching image ${image.filename}: ${msg}`);
+      }
+    })
+  );
+}
+
+/**
+ * Fetch an image and convert to base64
+ *
+ * Uses fetch for blob URLs, with canvas fallback for other image types.
+ */
+async function fetchImageAsBase64(image: ExtractedImage): Promise<string | null> {
+  const srcUrl = image.srcUrl;
+  if (!srcUrl) {
+    return null;
+  }
+
+  // Handle blob URLs - fetch and convert to base64
+  if (srcUrl.startsWith('blob:')) {
+    try {
+      const response = await fetch(srcUrl);
+      if (!response.ok) {
+        throw new Error(`Fetch failed: ${response.status}`);
+      }
+      const blob = await response.blob();
+      return await blobToBase64(blob);
+    } catch (error) {
+      // Blob URL may have expired or be inaccessible
+      // Try canvas approach as fallback
+      return await loadImageViaCanvas(srcUrl, image.format);
+    }
+  }
+
+  // For other URLs, try canvas approach
+  return await loadImageViaCanvas(srcUrl, image.format);
+}
+
+/**
+ * Convert a Blob to base64 string (without data URL prefix)
+ */
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      // Remove the data URL prefix (e.g., "data:image/png;base64,")
+      const base64 = result.split(',')[1];
+      resolve(base64 || '');
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * Load image via canvas and extract base64
+ *
+ * This works for images that can be drawn to canvas (same-origin or CORS-enabled).
+ */
+function loadImageViaCanvas(src: string, format: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(null);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0);
+
+        // Get base64 data
+        const mimeType = format === 'jpg' ? 'image/jpeg' : `image/${format}`;
+        const dataUrl = canvas.toDataURL(mimeType);
+        const base64 = dataUrl.split(',')[1];
+        resolve(base64 || null);
+      } catch {
+        // Canvas tainted by cross-origin data
+        resolve(null);
+      }
+    };
+
+    img.onerror = () => resolve(null);
+
+    // Set timeout to avoid hanging
+    setTimeout(() => resolve(null), 5000);
+
+    img.src = src;
+  });
 }
 
 /**
