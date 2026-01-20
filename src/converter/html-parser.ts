@@ -856,7 +856,9 @@ function postProcessElements(elements: AnyDocumentElement[]): AnyDocumentElement
     if (current.type === 'paragraph') {
       const para = current as ParagraphElement;
       // Check if this caption was already used by a previous figure
-      if (hasCaptionStyle({ className: para.style || '' } as HTMLElement)) {
+      const styleLC = (para.style || '').toLowerCase();
+      const isCaptionStyle = styleLC.includes('caption') || styleLC.includes('figcaption');
+      if (isCaptionStyle) {
         const prev = result[result.length - 1];
         if (prev && prev.type === 'figure') {
           // Skip this caption, it was already attached
