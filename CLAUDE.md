@@ -22,7 +22,7 @@ npx office-addin-dev-certs install   # Generate HTTPS certs
 
 **Important:** Update the version in `src/taskpane/taskpane.ts` whenever making changes:
 ```typescript
-const VERSION = '1.0.22';  // Increment this
+const VERSION = '1.0.23';  // Increment this
 ```
 This version displays in the debug panel and helps diagnose cache issues.
 
@@ -40,7 +40,7 @@ To deploy: simply push to `main` and the GitHub Action will build and deploy aut
 
 Microsoft Word Add-in that converts Word documents to reStructuredText (RST). Runs entirely client-side in Word Online/Desktop webview - the server only hosts static files.
 
-**Current version:** 1.0.22
+**Current version:** 1.0.23
 **Deployed:** https://ericb-bissell.github.io/rst-word-addin/
 
 ## Architecture
@@ -192,6 +192,7 @@ Body content here
 | Copy to clipboard | Preserves indentation |
 | Export as ZIP | RST file + images/ folder |
 | Debug panel | Collapsible, separate copy button |
+| Field lists | `FieldName::\tValue` pattern → `:FieldName: Value` |
 
 ## Bug Fixes
 
@@ -223,7 +224,6 @@ Body content here
 | Footnotes | `[1]_`, `[#]_`, `[#name]_` syntax | Detect Word footnotes via Office.js footnotes API |
 | Citations | `[citation]_` references | Detect Word endnotes or bibliography entries |
 | Definition lists | Term + indented definition pairs | Detect from Word formatting (bold term + indented para) |
-| Field lists | `:field: value` syntax | Detect from Word tab-separated or table patterns |
 | Transitions | Horizontal rules (`----`) | Detect Word horizontal lines or page breaks |
 
 ### Medium Priority

@@ -176,12 +176,23 @@ export interface ExtractedImage {
 }
 
 /**
+ * Field list item
+ */
+export interface FieldListItem {
+  /** Field name (single word) */
+  name: string;
+  /** Field value (may be empty) */
+  value: string;
+}
+
+/**
  * Document element types for conversion
  */
 export type DocumentElementType =
   | 'paragraph'
   | 'heading'
   | 'list'
+  | 'field-list'
   | 'table'
   | 'image'
   | 'figure'
@@ -295,12 +306,22 @@ export interface DirectiveElement extends DocumentElement {
 }
 
 /**
+ * Field list element
+ */
+export interface FieldListElement extends DocumentElement {
+  type: 'field-list';
+  /** Fields in the list */
+  fields: FieldListItem[];
+}
+
+/**
  * Utility type for all document elements
  */
 export type AnyDocumentElement =
   | HeadingElement
   | ParagraphElement
   | ListElement
+  | FieldListElement
   | ImageElement
   | FigureElement
   | TableElement

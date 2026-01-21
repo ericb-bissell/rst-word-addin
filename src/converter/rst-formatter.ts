@@ -15,6 +15,7 @@ import {
   HeadingElement,
   ParagraphElement,
   ListElement,
+  FieldListElement,
   ImageElement,
   FigureElement,
   TableElement,
@@ -80,6 +81,8 @@ export function formatElement(
       return formatParagraph(element as ParagraphElement, opts);
     case 'list':
       return formatList(element as ListElement, opts);
+    case 'field-list':
+      return formatFieldList(element as FieldListElement);
     case 'image':
       return formatImage(element as ImageElement, opts);
     case 'figure':
@@ -235,6 +238,15 @@ function formatList(element: ListElement, options: FormatterOptions, depth: numb
   }
 
   return lines.join('\n');
+}
+
+/**
+ * Format field list element
+ */
+function formatFieldList(element: FieldListElement): string {
+  return element.fields
+    .map((field) => `:${field.name}: ${field.value}`.trimEnd())
+    .join('\n');
 }
 
 /**

@@ -12,6 +12,8 @@ import {
   ParagraphElement,
   ListElement,
   ListItem,
+  FieldListElement,
+  FieldListItem,
   ImageElement,
   FigureElement,
   TableElement,
@@ -386,14 +388,47 @@ function parseHeadingElement(element: HTMLElement, level: number): HeadingElemen
 }
 
 /**
+ * Field list pattern: FieldName:: or FieldName::\tValue
+ * - Field name is word characters only (no spaces)
+ * - Double colon (::) is the marker
+ * - Tab separates name from value (optional if empty value)
+ */
+const FIELD_LIST_PATTERN = /^(\w+)::(?:\t(.*))?$/;
+
+/**
+ * Parse field list line from content
+ * @returns FieldListItem if content matches pattern, null otherwise
+ */
+function parseFieldListLine(content: string): FieldListItem | null {
+  const match = content.match(FIELD_LIST_PATTERN);
+  if (match) {
+    return {
+      name: match[1],
+      value: match[2] || '',
+    };
+  }
+  return null;
+}
+
+/**
  * Parse paragraph element
  */
-function parseParagraphElement(element: HTMLElement): ParagraphElement | null {
+function parseParagraphElement(element: HTMLElement): ParagraphElement | FieldListElement | null {
   const content = getFormattedContent(element);
 
   // Skip empty paragraphs
   if (!content.trim()) {
     return null;
+  }
+
+  // Check for field list pattern
+  const fieldItem = parseFieldListLine(content.trim());
+  if (fieldItem) {
+    return {
+      type: 'field-list',
+      fields: [fieldItem],
+      html: element.outerHTML,
+    };
   }
 
   return {
@@ -1197,6 +1232,19 @@ function postProcessElements(elements: AnyDocumentElement[]): AnyDocumentElement
           // Skip this caption, it was already attached
           continue;
         }
+      }
+    }
+
+    // Merge consecutive field lists
+    if (current.type === 'field-list') {
+      const fieldList = current as FieldListElement;
+      const last = result[result.length - 1];
+
+      if (last && last.type === 'field-list') {
+        // Merge into existing field list
+        const lastFieldList = last as FieldListElement;
+        lastFieldList.fields.push(...fieldList.fields);
+        continue;
       }
     }
 
