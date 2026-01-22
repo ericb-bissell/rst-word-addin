@@ -333,10 +333,17 @@ function extractWordStyle(element: HTMLElement): string | null {
   }
 
   // Check class list for rst_ prefixed style
+  // Word may convert "rst_need" to class "rstneed" (removing underscore)
   const classes = className.split(/\s+/);
   for (const cls of classes) {
-    if (cls.toLowerCase().startsWith('rst_') || cls.startsWith('rst-')) {
-      return cls.replace('rst-', 'rst_');
+    const lowerCls = cls.toLowerCase();
+    if (lowerCls.startsWith('rst_') || lowerCls.startsWith('rst-')) {
+      // Normalize to rst_ prefix
+      return lowerCls.replace('rst-', 'rst_');
+    }
+    // Handle Word stripping the underscore: rstneed -> rst_need
+    if (lowerCls.startsWith('rst') && lowerCls.length > 3 && lowerCls[3] !== '_' && lowerCls[3] !== '-') {
+      return 'rst_' + lowerCls.slice(3);
     }
   }
 
@@ -388,12 +395,12 @@ function parseHeadingElement(element: HTMLElement, level: number): HeadingElemen
 }
 
 /**
- * Field list pattern: FieldName:: or FieldName::\tValue
+ * Field list pattern: FieldName:: or FieldName::<whitespace>Value
  * - Field name is word characters only (no spaces)
  * - Double colon (::) is the marker
- * - Tab separates name from value (optional if empty value)
+ * - One or more spaces/tabs separate name from value (optional if empty value)
  */
-const FIELD_LIST_PATTERN = /^(\w+)::(?:\t(.*))?$/;
+const FIELD_LIST_PATTERN = /^(\w+)::(?:[ \t]+(.*))?$/;
 
 /**
  * Parse field list line from content

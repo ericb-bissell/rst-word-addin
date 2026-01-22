@@ -13,7 +13,7 @@ interface OoxmlImage {
 }
 
 // Version for debugging cache issues
-const VERSION = '1.0.23';
+const VERSION = '1.0.24';
 
 // UI Elements
 let refreshBtn: HTMLButtonElement;
